@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+import '../services/user_service.dart';
+import 'login_screen.dart';
+import 'personal_information_screen.dart';
+import 'security_screen.dart';
+import 'wallet_settings_screen.dart';
+import 'notification_settings_screen.dart';
+
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  void logout(BuildContext context) {
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  void logout() {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -14,18 +25,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void showMessage(
-      BuildContext context,
-      String message,
-      ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
-  }
-
-  void showLogoutDialog(BuildContext context) {
+  void showLogoutDialog() {
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -44,7 +44,7 @@ class ProfileScreen extends StatelessWidget {
             FilledButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
-                logout(context);
+                logout();
               },
               child: const Text('Logout'),
             ),
@@ -57,6 +57,15 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final user = UserService.currentUser;
+
+    if (user == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('No user is currently logged in.'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -85,10 +94,10 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            const Text(
-              'ChainVault User',
+            Text(
+              user.fullName,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -97,10 +106,33 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 5),
 
             Text(
-              'user@chainvault.com',
+              user.email,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'ID: ${user.userId}',
+                  style: TextStyle(
+                    color: colorScheme.onPrimaryContainer,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
 
@@ -109,114 +141,71 @@ class ProfileScreen extends StatelessWidget {
             Card(
               child: Column(
                 children: [
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                      colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.person_outline,
-                        color:
-                        colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    title: const Text('Personal Information'),
-                    subtitle: const Text(
-                      'Name, email and location',
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                    ),
-                    onTap: () {
-                      showMessage(
+                  _ProfileOption(
+                    icon: Icons.person_outline,
+                    title: 'Personal Information',
+                    subtitle: 'Name, email, location and phone',
+                    onTap: () async {
+                      await Navigator.push(
                         context,
-                        'Personal information coming soon',
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const PersonalInformationScreen(),
+                        ),
+                      );
+
+                      setState(() {});
+                    },
+                  ),
+
+                  const Divider(height: 1),
+
+                  _ProfileOption(
+                    icon: Icons.security_outlined,
+                    title: 'Security',
+                    subtitle: 'Password, biometrics and protection',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SecurityScreen(),
+                        ),
                       );
                     },
                   ),
 
-                  const Divider(
-                    height: 1,
-                  ),
+                  const Divider(height: 1),
 
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                      colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.security_outlined,
-                        color:
-                        colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    title: const Text('Security'),
-                    subtitle: const Text(
-                      'Password, biometrics and wallet security',
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                    ),
-                    onTap: () {
-                      showMessage(
+                  _ProfileOption(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Wallet Settings',
+                    subtitle: 'Wallet, networks and currency',
+                    onTap: () async {
+                      await Navigator.push(
                         context,
-                        'Security settings coming soon',
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const WalletSettingsScreen(),
+                        ),
                       );
+
+                      setState(() {});
                     },
                   ),
 
-                  const Divider(
-                    height: 1,
-                  ),
+                  const Divider(height: 1),
 
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                      colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color:
-                        colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    title: const Text('Wallet Settings'),
-                    subtitle: const Text(
-                      'Manage your wallet and networks',
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                    ),
+                  _ProfileOption(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notifications',
+                    subtitle: 'Manage notification preferences',
                     onTap: () {
-                      showMessage(
+                      Navigator.push(
                         context,
-                        'Wallet settings coming soon',
-                      );
-                    },
-                  ),
-
-                  const Divider(
-                    height: 1,
-                  ),
-
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                      colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.notifications_outlined,
-                        color:
-                        colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    title: const Text('Notifications'),
-                    subtitle: const Text(
-                      'Manage notification preferences',
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                    ),
-                    onTap: () {
-                      showMessage(
-                        context,
-                        'Notification settings coming soon',
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const NotificationSettingsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -228,9 +217,12 @@ class ProfileScreen extends StatelessWidget {
 
             Card(
               child: ListTile(
-                leading: const CircleAvatar(
+                leading: CircleAvatar(
+                  backgroundColor:
+                  colorScheme.errorContainer,
                   child: Icon(
                     Icons.logout,
+                    color: colorScheme.onErrorContainer,
                   ),
                 ),
                 title: const Text(
@@ -242,9 +234,7 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: const Text(
                   'Sign out of your ChainVault account',
                 ),
-                onTap: () {
-                  showLogoutDialog(context);
-                },
+                onTap: showLogoutDialog,
               ),
             ),
 
@@ -262,6 +252,48 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ProfileOption extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ProfileOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 7,
+      ),
+      leading: CircleAvatar(
+        backgroundColor: colorScheme.primaryContainer,
+        child: Icon(
+          icon,
+          color: colorScheme.onPrimaryContainer,
+        ),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
     );
   }
 }
