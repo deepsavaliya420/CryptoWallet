@@ -1,17 +1,18 @@
 name: crypto_wallet
-description: "A secure multi-chain crypto wallet application."
+description: A cryptocurrency wallet application.
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.1
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+
   shared_preferences: ^2.5.3
 
 dev_dependencies:
