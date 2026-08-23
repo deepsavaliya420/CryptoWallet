@@ -8,55 +8,13 @@ class TransactionService {
   static const String _storageKey =
       'wallet_transactions';
 
+  static final List<WalletTransaction>
+  _transactions = <WalletTransaction>[];
+
   static bool _initialized = false;
 
-  static final List<WalletTransaction> _transactions = [
-    WalletTransaction(
-      id: 'TX-10001',
-      type: 'Received',
-      asset: 'USDT',
-      network: 'TRC-20',
-      amount: 250.0,
-      value: 250.0,
-      from: 'TX9a...72Kp',
-      to: 'TY8b...91Lm',
-      status: 'Completed',
-      timestamp: DateTime.now().subtract(
-        const Duration(hours: 2),
-      ),
-    ),
-    WalletTransaction(
-      id: 'TX-10002',
-      type: 'Sent',
-      asset: 'SOL',
-      network: 'Solana',
-      amount: 0.50,
-      value: 92.50,
-      from: 'TY8b...91Lm',
-      to: '7xK2...9PqL',
-      status: 'Completed',
-      timestamp: DateTime.now().subtract(
-        const Duration(days: 1),
-      ),
-    ),
-    WalletTransaction(
-      id: 'TX-10003',
-      type: 'Received',
-      asset: 'ETH',
-      network: 'Ethereum',
-      amount: 0.20,
-      value: 490.0,
-      from: '0xA91...72BC',
-      to: '0x71C...976F',
-      status: 'Completed',
-      timestamp: DateTime.now().subtract(
-        const Duration(days: 2),
-      ),
-    ),
-  ];
-
   // ============================================================
-  // INITIALIZATION
+  // INITIALIZE
   // ============================================================
 
   static Future<void> initialize() async {
@@ -64,139 +22,42 @@ class TransactionService {
       return;
     }
 
-    final prefs =
+    final SharedPreferences prefs =
     await SharedPreferences.getInstance();
 
-    final savedTransactions =
+    final List<String>? saved =
     prefs.getStringList(_storageKey);
 
-    if (savedTransactions != null &&
-        savedTransactions.isNotEmpty) {
-      _transactions.clear();
+    _transactions.clear();
 
-      for (final transactionJson
-      in savedTransactions) {
+    if (saved != null) {
+      for (final String item in saved) {
         try {
-          final decoded =
-          jsonDecode(transactionJson);
+          final dynamic decoded =
+          jsonDecode(item);
 
           if (decoded is Map<String, dynamic>) {
             _transactions.add(
-              _transactionFromJson(decoded),
+              WalletTransaction.fromMap(
+                decoded,
+              ),
             );
           }
         } catch (_) {
-          // Ignore invalid saved transactions.
+          // Ignore invalid saved transaction.
         }
       }
     }
 
-    /*
-     * Make sure newest transaction is always first.
-     */
     _sortTransactions();
 
     _initialized = true;
   }
 
   // ============================================================
-  // GET TRANSACTIONS
+  // CREATE TRANSACTION
   // ============================================================
 
-  /// Get all transactions.
-  static Future<List<WalletTransaction>>
-  getTransactions() async {
-    await initialize();
-
-    _sortTransactions();
-
-    return List.unmodifiable(
-      _transactions,
-    );
-  }
-
-  /// Get recent transactions.
-  static Future<List<WalletTransaction>>
-  getRecentTransactions({
-    int limit = 3,
-  }) async {
-    await initialize();
-
-    _sortTransactions();
-
-    return List.unmodifiable(
-      _transactions.take(limit).toList(),
-    );
-  }
-
-  /// Get transaction by ID.
-  static Future<WalletTransaction?>
-  getTransaction(
-      String transactionId,
-      ) async {
-    await initialize();
-
-    try {
-      return _transactions.firstWhere(
-            (transaction) =>
-        transaction.id == transactionId,
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Get transactions for a specific asset.
-  static Future<List<WalletTransaction>>
-  getTransactionsByAsset(
-      String asset,
-      ) async {
-    await initialize();
-
-    final result = _transactions
-        .where(
-          (transaction) =>
-      transaction.asset.toUpperCase() ==
-          asset.toUpperCase(),
-    )
-        .toList();
-
-    result.sort(
-          (a, b) =>
-          b.timestamp.compareTo(a.timestamp),
-    );
-
-    return List.unmodifiable(result);
-  }
-
-  // ============================================================
-  // ADD TRANSACTION
-  // ============================================================
-
-  /// Add an existing transaction.
-  static Future<void> addTransaction(
-      WalletTransaction transaction,
-      ) async {
-    await initialize();
-
-    /*
-     * Add newest transaction at the beginning.
-     */
-    _transactions.insert(
-      0,
-      transaction,
-    );
-
-    _sortTransactions();
-
-    await _saveTransactions();
-  }
-
-  // ============================================================
-  // CREATE NORMAL TRANSACTION
-  // ============================================================
-
-  /// Create a normal Send/Receive transaction.
   static Future<WalletTransaction>
   createTransaction({
     required String type,
@@ -204,12 +65,18 @@ class TransactionService {
     required String network,
     required double amount,
     required double value,
-    required String from,
-    required String to,
+    String from = '',
+    String to = '',
   }) async {
     await initialize();
 
-    final transaction =
+    if (amount <= 0) {
+      throw StateError(
+        'Transaction amount must be greater than zero.',
+      );
+    }
+
+    final WalletTransaction transaction =
     WalletTransaction(
       id:
       'TX-${DateTime.now().millisecondsSinceEpoch}',
@@ -220,7 +87,6 @@ class TransactionService {
       value: value,
       from: from,
       to: to,
-      status: 'Completed',
       timestamp: DateTime.now(),
     );
 
@@ -229,18 +95,61 @@ class TransactionService {
       transaction,
     );
 
-    _sortTransactions();
-
     await _saveTransactions();
 
     return transaction;
   }
 
   // ============================================================
-  // CREATE P2P RECEIVED TRANSACTION
+  // SENT TRANSACTION
   // ============================================================
 
-  /// Create a completed P2P received transaction.
+  static Future<WalletTransaction>
+  createSentTransaction({
+    required String asset,
+    required String network,
+    required double amount,
+    required double value,
+    required String recipient,
+  }) async {
+    return createTransaction(
+      type: 'Sent',
+      asset: asset,
+      network: network,
+      amount: amount,
+      value: value,
+      from: 'My Wallet',
+      to: recipient,
+    );
+  }
+
+  // ============================================================
+  // RECEIVED TRANSACTION
+  // ============================================================
+
+  static Future<WalletTransaction>
+  createReceivedTransaction({
+    required String asset,
+    required String network,
+    required double amount,
+    required double value,
+    required String sender,
+  }) async {
+    return createTransaction(
+      type: 'Received',
+      asset: asset,
+      network: network,
+      amount: amount,
+      value: value,
+      from: sender,
+      to: 'My Wallet',
+    );
+  }
+
+  // ============================================================
+  // P2P RECEIVED TRANSACTION
+  // ============================================================
+
   static Future<WalletTransaction>
   createP2PReceivedTransaction({
     required String asset,
@@ -250,12 +159,7 @@ class TransactionService {
     required String seller,
     required String buyerWallet,
   }) async {
-    await initialize();
-
-    final transaction =
-    WalletTransaction(
-      id:
-      'P2P-${DateTime.now().millisecondsSinceEpoch}',
+    return createTransaction(
       type: 'Received',
       asset: asset,
       network: network,
@@ -263,7 +167,50 @@ class TransactionService {
       value: value,
       from: seller,
       to: buyerWallet,
-      status: 'Completed',
+    );
+  }
+
+  // ============================================================
+  // SWAP TRANSACTION
+  // ============================================================
+
+  static Future<WalletTransaction>
+  createSwapTransaction({
+    required String fromCurrency,
+    required String fromNetwork,
+    required double fromAmount,
+    required String toCurrency,
+    required String toNetwork,
+    required double toAmount,
+    required double exchangeRate,
+  }) async {
+    await initialize();
+
+    if (fromAmount <= 0) {
+      throw StateError(
+        'Swap source amount must be greater than zero.',
+      );
+    }
+
+    if (toAmount <= 0) {
+      throw StateError(
+        'Swap destination amount must be greater than zero.',
+      );
+    }
+
+    final WalletTransaction transaction =
+    WalletTransaction(
+      id:
+      'SWAP-${DateTime.now().millisecondsSinceEpoch}',
+      type: 'Swap',
+      asset:
+      '$fromCurrency → $toCurrency',
+      network:
+      '$fromNetwork → $toNetwork',
+      amount: fromAmount,
+      value: toAmount,
+      from: fromCurrency,
+      to: toCurrency,
       timestamp: DateTime.now(),
     );
 
@@ -272,26 +219,87 @@ class TransactionService {
       transaction,
     );
 
-    _sortTransactions();
-
     await _saveTransactions();
 
     return transaction;
   }
 
   // ============================================================
+  // GET ALL
+  // ============================================================
+
+  static Future<List<WalletTransaction>>
+  getTransactions() async {
+    await initialize();
+
+    _sortTransactions();
+
+    return List<WalletTransaction>.unmodifiable(
+      _transactions,
+    );
+  }
+
+  // ============================================================
+  // GET RECENT
+  // ============================================================
+
+  static Future<List<WalletTransaction>>
+  getRecentTransactions({
+    int limit = 5,
+  }) async {
+    await initialize();
+
+    if (limit <= 0) {
+      return <WalletTransaction>[];
+    }
+
+    _sortTransactions();
+
+    final int count =
+    limit < _transactions.length
+        ? limit
+        : _transactions.length;
+
+    return List<WalletTransaction>.unmodifiable(
+      _transactions
+          .take(count)
+          .toList(),
+    );
+  }
+
+  // ============================================================
+  // GET ONE
+  // ============================================================
+
+  static Future<WalletTransaction?>
+  getTransaction(
+      String id,
+      ) async {
+    await initialize();
+
+    try {
+      return _transactions.firstWhere(
+            (WalletTransaction transaction) =>
+        transaction.id == id,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ============================================================
   // DELETE
   // ============================================================
 
-  /// Delete transaction.
-  static Future<void> deleteTransaction(
-      String transactionId,
+  static Future<void>
+  deleteTransaction(
+      String id,
       ) async {
     await initialize();
 
     _transactions.removeWhere(
-          (transaction) =>
-      transaction.id == transactionId,
+          (WalletTransaction transaction) =>
+      transaction.id == id,
     );
 
     await _saveTransactions();
@@ -301,8 +309,8 @@ class TransactionService {
   // CLEAR
   // ============================================================
 
-  /// Clear all transactions.
-  static Future<void> clearTransactions() async {
+  static Future<void>
+  clearTransactions() async {
     await initialize();
 
     _transactions.clear();
@@ -311,93 +319,43 @@ class TransactionService {
   }
 
   // ============================================================
-  // STORAGE
+  // SAVE
   // ============================================================
 
-  static Future<void> _saveTransactions() async {
-    final prefs =
+  static Future<void>
+  _saveTransactions() async {
+    final SharedPreferences prefs =
     await SharedPreferences.getInstance();
 
-    final encodedTransactions =
-    _transactions
-        .map(
-          (transaction) =>
-          jsonEncode(
-            _transactionToJson(
-              transaction,
-            ),
-          ),
-    )
-        .toList();
+    final List<String> encoded =
+    _transactions.map(
+          (WalletTransaction transaction) {
+        return jsonEncode(
+          transaction.toMap(),
+        );
+      },
+    ).toList();
 
     await prefs.setStringList(
       _storageKey,
-      encodedTransactions,
+      encoded,
     );
   }
 
   // ============================================================
-  // JSON CONVERSION
-  // ============================================================
-
-  static Map<String, dynamic>
-  _transactionToJson(
-      WalletTransaction transaction,
-      ) {
-    return {
-      'id': transaction.id,
-      'type': transaction.type,
-      'asset': transaction.asset,
-      'network': transaction.network,
-      'amount': transaction.amount,
-      'value': transaction.value,
-      'from': transaction.from,
-      'to': transaction.to,
-      'status': transaction.status,
-      'timestamp':
-      transaction.timestamp.toIso8601String(),
-    };
-  }
-
-  static WalletTransaction
-  _transactionFromJson(
-      Map<String, dynamic> json,
-      ) {
-    return WalletTransaction(
-      id: json['id']?.toString() ?? '',
-      type: json['type']?.toString() ?? '',
-      asset: json['asset']?.toString() ?? '',
-      network:
-      json['network']?.toString() ?? '',
-      amount:
-      (json['amount'] as num?)?.toDouble() ??
-          0.0,
-      value:
-      (json['value'] as num?)?.toDouble() ??
-          0.0,
-      from: json['from']?.toString() ?? '',
-      to: json['to']?.toString() ?? '',
-      status:
-      json['status']?.toString() ??
-          'Completed',
-      timestamp:
-      DateTime.tryParse(
-        json['timestamp']
-            ?.toString() ??
-            '',
-      ) ??
-          DateTime.now(),
-    );
-  }
-
-  // ============================================================
-  // SORTING
+  // SORT
   // ============================================================
 
   static void _sortTransactions() {
     _transactions.sort(
-          (a, b) =>
-          b.timestamp.compareTo(a.timestamp),
+          (
+          WalletTransaction a,
+          WalletTransaction b,
+          ) {
+        return b.timestamp.compareTo(
+          a.timestamp,
+        );
+      },
     );
   }
 }

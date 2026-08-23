@@ -24,17 +24,20 @@ class SendReceiveScreen extends StatefulWidget {
 
 class _SendReceiveScreenState
     extends State<SendReceiveScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey =
+  GlobalKey<FormState>();
 
-  final _addressController =
+  final TextEditingController
+  _addressController =
   TextEditingController();
 
-  final _amountController =
+  final TextEditingController
+  _amountController =
   TextEditingController();
 
   bool _isProcessing = false;
 
-  double _currentBalance = 0;
+  double _currentBalance = 0.0;
 
   bool get isSend =>
       widget.mode == TransferMode.send;
@@ -42,7 +45,6 @@ class _SendReceiveScreenState
   @override
   void initState() {
     super.initState();
-
     _loadBalance();
   }
 
@@ -50,25 +52,34 @@ class _SendReceiveScreenState
   void dispose() {
     _addressController.dispose();
     _amountController.dispose();
-
     super.dispose();
   }
 
   // ============================================================
-  // LOAD BALANCE
+  // LOAD TOTAL USD BALANCE
   // ============================================================
 
   Future<void> _loadBalance() async {
-    final balance =
-    await WalletService.getUSDTBalance();
+    try {
+      final double balance =
+      await WalletService.getTotalBalance();
 
-    if (!mounted) {
-      return;
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _currentBalance = balance;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showError(
+        _cleanError(error),
+      );
     }
-
-    setState(() {
-      _currentBalance = balance;
-    });
   }
 
   // ============================================================
@@ -80,10 +91,10 @@ class _SendReceiveScreenState
       return;
     }
 
-    final address =
+    final String address =
     _addressController.text.trim();
 
-    final amount =
+    final double? amount =
     double.tryParse(
       _amountController.text.trim(),
     );
@@ -109,17 +120,39 @@ class _SendReceiveScreenState
   }
 
   // ============================================================
-  // SEND
+  // SEND USD
+  //
+  // THIS IS THE IMPORTANT FIX.
+  //
+  // We check the TOTAL USD wallet balance,
+  // not just USDT.
+  //
+  // Then WalletService.sendUsd() actually
+  // removes the USD value from the wallet.
   // ============================================================
 
   Future<void> _send({
     required String address,
     required double amount,
   }) async {
-    if (amount > _currentBalance) {
+    // Always get the latest balance immediately
+    // before sending.
+    final double latestBalance =
+    await WalletService.getTotalBalance();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _currentBalance = latestBalance;
+    });
+
+    if (amount >
+        latestBalance + 0.00000001) {
       _showError(
-        'Insufficient USDT balance. '
-            'Available: ${_currentBalance.toStringAsFixed(2)} USDT',
+        'Insufficient wallet balance. '
+            'Available: \$${latestBalance.toStringAsFixed(2)}',
       );
       return;
     }
@@ -129,21 +162,24 @@ class _SendReceiveScreenState
     });
 
     try {
-      /*
-       * In this local implementation, the recipient
-       * address represents the destination wallet.
-       */
-
-      const myWalletAddress =
+      const String myWalletAddress =
           'MY_WALLET';
 
-      await WalletService.subtractUSDT(
+      // --------------------------------------------------------
+      // 1. ACTUALLY REMOVE USD VALUE FROM WALLET
+      // --------------------------------------------------------
+
+      await WalletService.sendUsd(
         amount,
       );
 
+      // --------------------------------------------------------
+      // 2. CREATE TRANSACTION
+      // --------------------------------------------------------
+
       await TransactionService.createTransaction(
         type: 'Sent',
-        asset: 'USDT',
+        asset: 'USD',
         network: 'TRC-20',
         amount: amount,
         value: amount,
@@ -151,18 +187,28 @@ class _SendReceiveScreenState
         to: address,
       );
 
+      // --------------------------------------------------------
+      // 3. GET NEW BALANCE
+      // --------------------------------------------------------
+
+      final double newBalance =
+      await WalletService.getTotalBalance();
+
       if (!mounted) {
         return;
       }
 
-      _showSuccess(
-        'Sent ${amount.toStringAsFixed(2)} USDT successfully.',
-      );
+      setState(() {
+        _currentBalance = newBalance;
+      });
 
-      /*
-       * Return true to HomeScreen so it refreshes
-       * balance and Recent Transactions.
-       */
+      // --------------------------------------------------------
+      // 4. RETURN TO HOME
+      //
+      // true tells HomeScreen to reload its
+      // balance and recent transactions.
+      // --------------------------------------------------------
+
       Navigator.pop(
         context,
         true,
@@ -173,10 +219,7 @@ class _SendReceiveScreenState
       }
 
       _showError(
-        error.toString().replaceFirst(
-          'Bad state: ',
-          '',
-        ),
+        _cleanError(error),
       );
     } finally {
       if (mounted) {
@@ -189,6 +232,10 @@ class _SendReceiveScreenState
 
   // ============================================================
   // RECEIVE REQUEST
+  //
+  // Creating a request does NOT add balance.
+  // Balance is added when the request is actually
+  // completed/paid.
   // ============================================================
 
   Future<void> _createReceiveRequest({
@@ -200,18 +247,8 @@ class _SendReceiveScreenState
     });
 
     try {
-      const myWalletAddress =
+      const String myWalletAddress =
           'MY_WALLET';
-
-      /*
-       * IMPORTANT:
-       *
-       * Creating a Receive request DOES NOT add money
-       * to the wallet.
-       *
-       * The sender must actually send the requested
-       * amount before the receiver balance changes.
-       */
 
       final request =
       await ReceiveRequestService.createRequest(
@@ -245,10 +282,7 @@ class _SendReceiveScreenState
       }
 
       _showError(
-        error.toString().replaceFirst(
-          'Bad state: ',
-          '',
-        ),
+        _cleanError(error),
       );
     } finally {
       if (mounted) {
@@ -270,7 +304,7 @@ class _SendReceiveScreenState
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text(
             'Receive Request Created',
@@ -297,8 +331,9 @@ class _SendReceiveScreenState
               ),
               Text(
                 'Request ID:',
-                style:
-                Theme.of(context)
+                style: Theme.of(
+                  dialogContext,
+                )
                     .textTheme
                     .labelLarge,
               ),
@@ -319,7 +354,7 @@ class _SendReceiveScreenState
             TextButton(
               onPressed: () {
                 Navigator.pop(
-                  context,
+                  dialogContext,
                 );
               },
               child: const Text(
@@ -339,6 +374,10 @@ class _SendReceiveScreenState
   void _showError(
       String message,
       ) {
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
 
@@ -346,8 +385,7 @@ class _SendReceiveScreenState
         .showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-        Colors.red,
+        backgroundColor: Colors.red,
         behavior:
         SnackBarBehavior.floating,
       ),
@@ -361,6 +399,10 @@ class _SendReceiveScreenState
   void _showSuccess(
       String message,
       ) {
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
 
@@ -375,7 +417,26 @@ class _SendReceiveScreenState
   }
 
   // ============================================================
-  // VALIDATION
+  // ERROR CLEANER
+  // ============================================================
+
+  String _cleanError(
+      Object error,
+      ) {
+    return error
+        .toString()
+        .replaceFirst(
+      'Bad state: ',
+      '',
+    )
+        .replaceFirst(
+      'Exception: ',
+      '',
+    );
+  }
+
+  // ============================================================
+  // ADDRESS VALIDATION
   // ============================================================
 
   String? _validateAddress(
@@ -395,6 +456,10 @@ class _SendReceiveScreenState
     return null;
   }
 
+  // ============================================================
+  // AMOUNT VALIDATION
+  // ============================================================
+
   String? _validateAmount(
       String? value,
       ) {
@@ -403,7 +468,7 @@ class _SendReceiveScreenState
       return 'Enter the amount.';
     }
 
-    final amount =
+    final double? amount =
     double.tryParse(
       value.trim(),
     );
@@ -413,9 +478,13 @@ class _SendReceiveScreenState
       return 'Enter a valid amount.';
     }
 
+    // IMPORTANT:
+    // Compare against TOTAL USD balance.
     if (isSend &&
-        amount > _currentBalance) {
-      return 'Insufficient balance.';
+        amount >
+            _currentBalance +
+                0.00000001) {
+      return 'Insufficient wallet balance.';
     }
 
     return null;
@@ -426,28 +495,32 @@ class _SendReceiveScreenState
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
-    final title = isSend
-        ? 'Send USDT'
-        : 'Receive USDT';
+  Widget build(
+      BuildContext context,
+      ) {
+    final String title = isSend
+        ? 'Send USD'
+        : 'Receive USD';
 
-    final addressLabel = isSend
+    final String addressLabel =
+    isSend
         ? 'Recipient Wallet Address'
         : 'Sender Wallet Address';
 
-    final addressHint = isSend
+    final String addressHint =
+    isSend
         ? 'Enter wallet address to send to'
         : 'Enter wallet address to request from';
 
-    final buttonText = isSend
-        ? 'Send USDT'
+    final String buttonText =
+    isSend
+        ? 'Send USD'
         : 'Create Receive Request';
 
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
       ),
-
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -456,13 +529,15 @@ class _SendReceiveScreenState
             const EdgeInsets.all(20),
             children: [
               // ==================================================
-              // HEADER
+              // ICON
               // ==================================================
 
               Icon(
                 isSend
-                    ? Icons.arrow_upward_rounded
-                    : Icons.arrow_downward_rounded,
+                    ? Icons
+                    .arrow_upward_rounded
+                    : Icons
+                    .arrow_downward_rounded,
                 size: 52,
               ),
 
@@ -470,12 +545,15 @@ class _SendReceiveScreenState
                 height: 16,
               ),
 
+              // ==================================================
+              // TITLE
+              // ==================================================
+
               Text(
                 title,
                 textAlign:
                 TextAlign.center,
-                style:
-                Theme.of(context)
+                style: Theme.of(context)
                     .textTheme
                     .headlineSmall
                     ?.copyWith(
@@ -490,13 +568,12 @@ class _SendReceiveScreenState
 
               Text(
                 isSend
-                    ? 'Send USDT to another wallet.'
-                    : 'Request USDT from another wallet.',
+                    ? 'Send USD to another wallet.'
+                    : 'Request USD from another wallet.',
                 textAlign:
                 TextAlign.center,
                 style: TextStyle(
-                  color:
-                  Theme.of(context)
+                  color: Theme.of(context)
                       .colorScheme
                       .onSurfaceVariant,
                 ),
@@ -507,42 +584,42 @@ class _SendReceiveScreenState
               ),
 
               // ==================================================
-              // BALANCE
+              // CURRENT BALANCE
               // ==================================================
 
-              if (isSend)
-                Card(
-                  child: Padding(
-                    padding:
-                    const EdgeInsets.all(
-                      16,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons
-                              .account_balance_wallet_outlined,
+              Card(
+                child: Padding(
+                  padding:
+                  const EdgeInsets.all(
+                    16,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons
+                            .account_balance_wallet_outlined,
+                      ),
+                      const SizedBox(
+                        width: 12,
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Available Balance',
                         ),
-                        const SizedBox(
-                          width: 12,
+                      ),
+                      Text(
+                        '\$${_currentBalance.toStringAsFixed(2)}',
+                        style:
+                        const TextStyle(
+                          fontWeight:
+                          FontWeight.bold,
+                          fontSize: 16,
                         ),
-                        const Expanded(
-                          child: Text(
-                            'Available USDT',
-                          ),
-                        ),
-                        Text(
-                          '${_currentBalance.toStringAsFixed(2)} USDT',
-                          style:
-                          const TextStyle(
-                            fontWeight:
-                            FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
 
               const SizedBox(
                 height: 18,
@@ -557,9 +634,6 @@ class _SendReceiveScreenState
                 _addressController,
                 validator:
                 _validateAddress,
-                keyboardType:
-                TextInputType
-                    .text,
                 autocorrect: false,
                 decoration:
                 InputDecoration(
@@ -607,7 +681,7 @@ class _SendReceiveScreenState
                         .attach_money,
                   ),
                   suffixText:
-                  'USDT',
+                  'USD',
                   border:
                   OutlineInputBorder(),
                 ),
@@ -625,8 +699,7 @@ class _SendReceiveScreenState
                 child: ListTile(
                   leading:
                   const Icon(
-                    Icons
-                        .lan_outlined,
+                    Icons.lan_outlined,
                   ),
                   title:
                   const Text(
@@ -638,8 +711,7 @@ class _SendReceiveScreenState
                   ),
                   trailing:
                   const Icon(
-                    Icons
-                        .check_circle,
+                    Icons.check_circle,
                   ),
                 ),
               ),
@@ -660,12 +732,13 @@ class _SendReceiveScreenState
                   ),
                   child: Text(
                     isSend
-                        ? 'The USDT amount will be deducted from your wallet after confirmation.'
-                        : 'Creating a request does not add USDT to your balance. The sender must approve the request and send the funds.',
+                        ? 'The USD value will be deducted from your wallet after confirmation. Your Home balance will update immediately.'
+                        : 'Creating a request does not add funds immediately. The sender must approve the request and complete the transfer.',
                     style:
                     TextStyle(
-                      color:
-                      Theme.of(context)
+                      color: Theme.of(
+                        context,
+                      )
                           .colorScheme
                           .onSurfaceVariant,
                     ),

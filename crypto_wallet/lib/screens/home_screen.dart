@@ -12,6 +12,8 @@ import 'notifications_screen.dart';
 import 'p2p_screen.dart';
 import 'profile_screen.dart';
 import 'send_receive_screen.dart';
+import 'swap_history_screen.dart';
+import 'swap_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -30,7 +32,7 @@ class _HomeScreenState
 
   List<WalletTransaction> transactions = [];
 
-  double totalBalance = 0;
+  double totalBalance = 0.0;
 
   bool isLoading = true;
 
@@ -38,17 +40,25 @@ class _HomeScreenState
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addObserver(
+      this,
+    );
 
     _loadWalletData();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    WidgetsBinding.instance.removeObserver(
+      this,
+    );
 
     super.dispose();
   }
+
+  // ============================================================
+  // APP RESUMED
+  // ============================================================
 
   @override
   void didChangeAppLifecycleState(
@@ -60,20 +70,22 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // LOAD HOME DATA
+  // LOAD WALLET
   // ============================================================
 
   Future<void> _loadWalletData() async {
     try {
-      final walletAssets =
+      final List<Asset> walletAssets =
       await WalletService.getAssets();
 
-      final walletBalance =
+      final double walletBalance =
       await WalletService.getTotalBalance();
 
-      final walletTransactions =
-      await TransactionService.getRecentTransactions(
-        limit: 3,
+      final List<WalletTransaction>
+      walletTransactions =
+      await TransactionService
+          .getRecentTransactions(
+        limit: 5,
       );
 
       if (!mounted) {
@@ -103,36 +115,24 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // SEND / RECEIVE
+  // SEND
   // ============================================================
 
-  Future<void> _openSendReceive(
-      TransferMode mode,
-      ) async {
-    final result =
+  Future<void> _openSend() async {
+    final bool? result =
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) =>
-            SendReceiveScreen(
-              mode: mode,
-            ),
+        const SendReceiveScreen(
+          mode: TransferMode.send,
+        ),
       ),
     );
 
     if (!mounted) {
       return;
     }
-
-    /*
-     * Always refresh when returning from Send/Receive.
-     *
-     * This is important because:
-     *
-     * Send    -> balance decreases
-     * Receive -> balance increases
-     * Both    -> transaction list changes
-     */
 
     await _loadWalletData();
 
@@ -142,23 +142,93 @@ class _HomeScreenState
 
     if (result == true) {
       _showMessage(
-        mode == TransferMode.send
-            ? 'USDT sent successfully.'
-            : 'USDT received successfully.',
+        'Send completed successfully.',
       );
     }
   }
 
   // ============================================================
-  // PROFILE
+  // RECEIVE
   // ============================================================
 
-  Future<void> _openProfile() async {
+  Future<void> _openReceive() async {
+    final bool? result =
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+        const SendReceiveScreen(
+          mode: TransferMode.receive,
+        ),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadWalletData();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result == true) {
+      _showMessage(
+        'Receive completed successfully.',
+      );
+    }
+  }
+
+  // ============================================================
+  // SWAP
+  //
+  // IMPORTANT:
+  // THIS IS THE FIX.
+  //
+  // There is NO "Swap feature coming soon" here.
+  // It directly opens SwapScreen.
+  // ============================================================
+
+  Future<void> _openSwap() async {
+    final bool? result =
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+        const SwapScreen(),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    // Refresh balance and recent transactions
+    // after returning from SwapScreen.
+    await _loadWalletData();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result == true) {
+      _showMessage(
+        'Swap completed successfully.',
+      );
+    }
+  }
+
+  // ============================================================
+  // SWAP HISTORY
+  // ============================================================
+
+  Future<void> _openSwapHistory() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
-        const ProfileScreen(),
+        const SwapHistoryScreen(),
       ),
     );
 
@@ -190,18 +260,16 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // RECEIVE REQUESTS
+  // PROFILE
   // ============================================================
 
-  Future<void> _openReceiveRequests() async {
-    /*
-     * We import this screen dynamically through the local
-     * navigation function below.
-     */
-
-    await Navigator.pushNamed(
+  Future<void> _openProfile() async {
+    await Navigator.push(
       context,
-      '/receive-requests',
+      MaterialPageRoute(
+        builder: (context) =>
+        const ProfileScreen(),
+      ),
     );
 
     if (!mounted) {
@@ -212,6 +280,20 @@ class _HomeScreenState
   }
 
   // ============================================================
+  // NOTIFICATIONS
+  // ============================================================
+
+  Future<void> _openNotifications() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+        const NotificationsScreen(),
+      ),
+    );
+  }
+
+  // ============================================================
   // MESSAGE
   // ============================================================
 
@@ -219,22 +301,34 @@ class _HomeScreenState
       String message, {
         bool isError = false,
       }) {
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+        ),
         backgroundColor:
         isError ? Colors.red : null,
         behavior:
         SnackBarBehavior.floating,
         duration:
-        const Duration(seconds: 2),
+        const Duration(
+          seconds: 2,
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // ERROR
+  // ============================================================
 
   String _cleanError(
       Object error,
@@ -242,11 +336,11 @@ class _HomeScreenState
     return error
         .toString()
         .replaceFirst(
-      'Bad state: ',
+      'Exception: ',
       '',
     )
         .replaceFirst(
-      'Exception: ',
+      'Bad state: ',
       '',
     );
   }
@@ -268,9 +362,10 @@ class _HomeScreenState
   String _formatTransactionTime(
       DateTime timestamp,
       ) {
-    final now = DateTime.now();
+    final DateTime now =
+    DateTime.now();
 
-    final difference =
+    final Duration difference =
     now.difference(timestamp);
 
     if (difference.inMinutes < 1) {
@@ -282,11 +377,13 @@ class _HomeScreenState
     }
 
     if (difference.inDays < 1) {
-      return 'Today, ${_formatTime(timestamp)}';
+      return 'Today, '
+          '${_formatTime(timestamp)}';
     }
 
     if (difference.inDays == 1) {
-      return 'Yesterday, ${_formatTime(timestamp)}';
+      return 'Yesterday, '
+          '${_formatTime(timestamp)}';
     }
 
     return '${timestamp.day}/'
@@ -297,17 +394,20 @@ class _HomeScreenState
   String _formatTime(
       DateTime dateTime,
       ) {
-    final hour =
+    final int hour =
     dateTime.hour % 12 == 0
         ? 12
         : dateTime.hour % 12;
 
-    final minute =
+    final String minute =
     dateTime.minute
         .toString()
-        .padLeft(2, '0');
+        .padLeft(
+      2,
+      '0',
+    );
 
-    final period =
+    final String period =
     dateTime.hour >= 12
         ? 'PM'
         : 'AM';
@@ -316,12 +416,172 @@ class _HomeScreenState
   }
 
   // ============================================================
+  // TRANSACTION CARD
+  // ============================================================
+
+  Widget _transactionCard(
+      WalletTransaction transaction,
+      ) {
+    final String type =
+    transaction.type.toLowerCase();
+
+    final bool isReceive =
+        type == 'received' ||
+            type == 'receive';
+
+    final bool isSwap =
+        type == 'swap';
+
+    final Color color;
+
+    final IconData icon;
+
+    if (isSwap) {
+      color = Theme.of(context)
+          .colorScheme
+          .primary;
+
+      icon = Icons.swap_horiz;
+    } else if (isReceive) {
+      color = Colors.green;
+
+      icon = Icons.arrow_downward;
+    } else {
+      color = Colors.red;
+
+      icon = Icons.arrow_upward;
+    }
+
+    String amountText;
+
+    if (isSwap) {
+      amountText =
+      '${transaction.amount.toStringAsFixed(2)} '
+          '${transaction.asset}';
+    } else {
+      amountText =
+      '${isReceive ? '+' : '-'}'
+          '${transaction.amount.toStringAsFixed(2)} '
+          '${transaction.asset}';
+    }
+
+    return Card(
+      margin:
+      const EdgeInsets.only(
+        bottom: 10,
+      ),
+      child: Padding(
+        padding:
+        const EdgeInsets.all(
+          16,
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor:
+              color.withValues(
+                alpha: 0.14,
+              ),
+              child: Icon(
+                icon,
+                color: color,
+              ),
+            ),
+
+            const SizedBox(
+              width: 14,
+            ),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    transaction.type,
+                    style:
+                    const TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                      FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 4,
+                  ),
+
+                  Text(
+                    '${transaction.asset} • '
+                        '${transaction.network}',
+                    style:
+                    TextStyle(
+                      color: Theme.of(
+                        context,
+                      )
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 3,
+                  ),
+
+                  Text(
+                    _formatTransactionTime(
+                      transaction.timestamp,
+                    ),
+                    style:
+                    TextStyle(
+                      color: Theme.of(
+                        context,
+                      )
+                          .colorScheme
+                          .onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(
+              width: 8,
+            ),
+
+            Flexible(
+              child: Text(
+                amountText,
+                textAlign:
+                TextAlign.end,
+                style:
+                TextStyle(
+                  fontWeight:
+                  FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context,
+      ) {
     return Scaffold(
+      // ========================================================
+      // APP BAR
+      // ========================================================
+
       appBar: AppBar(
         title: const Text(
           'ChainVault',
@@ -334,15 +594,8 @@ class _HomeScreenState
           IconButton(
             tooltip:
             'Notifications',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                  const NotificationsScreen(),
-                ),
-              );
-            },
+            onPressed:
+            _openNotifications,
             icon: const Icon(
               Icons.notifications_outlined,
             ),
@@ -351,15 +604,15 @@ class _HomeScreenState
           Padding(
             padding:
             const EdgeInsets.only(
-              right: 12,
+              right: 8,
             ),
             child: IconButton(
-              tooltip: 'Profile',
+              tooltip:
+              'Profile',
               onPressed:
               _openProfile,
               icon: const Icon(
-                Icons
-                    .account_circle_outlined,
+                Icons.account_circle_outlined,
               ),
             ),
           ),
@@ -376,7 +629,8 @@ class _HomeScreenState
         CircularProgressIndicator(),
       )
           : SafeArea(
-        child: RefreshIndicator(
+        child:
+        RefreshIndicator(
           onRefresh:
           _loadWalletData,
           child: ListView(
@@ -418,7 +672,7 @@ class _HomeScreenState
               ),
 
               // ==================================================
-              // BALANCE
+              // TOTAL BALANCE
               // ==================================================
 
               WalletBalanceCard(
@@ -449,22 +703,19 @@ class _HomeScreenState
 
               Row(
                 children: [
-                  // ==============================================
+                  // ----------------------------------------------
                   // SEND
-                  // ==============================================
+                  // ----------------------------------------------
 
                   Expanded(
                     child:
                     ActionCard(
-                      icon: Icons
-                          .arrow_upward,
-                      title: 'Send',
-                      onTap: () {
-                        _openSendReceive(
-                          TransferMode
-                              .send,
-                        );
-                      },
+                      icon:
+                      Icons.arrow_upward,
+                      title:
+                      'Send',
+                      onTap:
+                      _openSend,
                     ),
                   ),
 
@@ -472,23 +723,19 @@ class _HomeScreenState
                     width: 10,
                   ),
 
-                  // ==============================================
+                  // ----------------------------------------------
                   // RECEIVE
-                  // ==============================================
+                  // ----------------------------------------------
 
                   Expanded(
                     child:
                     ActionCard(
-                      icon: Icons
-                          .arrow_downward,
+                      icon:
+                      Icons.arrow_downward,
                       title:
                       'Receive',
-                      onTap: () {
-                        _openSendReceive(
-                          TransferMode
-                              .receive,
-                        );
-                      },
+                      onTap:
+                      _openReceive,
                     ),
                   ),
 
@@ -496,21 +743,24 @@ class _HomeScreenState
                     width: 10,
                   ),
 
-                  // ==============================================
+                  // ----------------------------------------------
                   // SWAP
-                  // ==============================================
+                  //
+                  // THIS IS THE IMPORTANT PART.
+                  //
+                  // It calls _openSwap().
+                  // It does NOT call a "coming soon" message.
+                  // ----------------------------------------------
 
                   Expanded(
                     child:
                     ActionCard(
-                      icon: Icons
-                          .swap_horiz,
-                      title: 'Swap',
-                      onTap: () {
-                        _showMessage(
-                          'Swap feature coming soon',
-                        );
-                      },
+                      icon:
+                      Icons.swap_horiz,
+                      title:
+                      'Swap',
+                      onTap:
+                      _openSwap,
                     ),
                   ),
                 ],
@@ -540,15 +790,32 @@ class _HomeScreenState
                 height: 10,
               ),
 
-              ...assets.map(
-                    (asset) =>
-                    AssetCard(
-                      asset: asset,
+              if (assets.isEmpty)
+                const Padding(
+                  padding:
+                  EdgeInsets.all(
+                    20,
+                  ),
+                  child:
+                  Center(
+                    child: Text(
+                      'No assets yet',
                     ),
+                  ),
+                ),
+
+              ...assets.map(
+                    (
+                    Asset asset,
+                    ) {
+                  return AssetCard(
+                    asset: asset,
+                  );
+                },
               ),
 
               const SizedBox(
-                height: 16,
+                height: 24,
               ),
 
               // ==================================================
@@ -560,11 +827,8 @@ class _HomeScreenState
                 'Recent Transactions',
                 actionText:
                 'View All',
-                onAction: () {
-                  _showMessage(
-                    'Transactions screen coming soon',
-                  );
-                },
+                onAction:
+                _openSwapHistory,
               ),
 
               const SizedBox(
@@ -586,16 +850,14 @@ class _HomeScreenState
                 ),
 
               ...transactions.map(
-                    (transaction) =>
-                    _TransactionCard(
-                      transaction:
-                      transaction,
-                      time:
-                      _formatTransactionTime(
-                        transaction
-                            .timestamp,
-                      ),
-                    ),
+                    (
+                    WalletTransaction
+                    transaction,
+                    ) {
+                  return _transactionCard(
+                    transaction,
+                  );
+                },
               ),
 
               const SizedBox(
@@ -603,18 +865,18 @@ class _HomeScreenState
               ),
 
               // ==================================================
-              // RECEIVE REQUESTS
+              // SWAP HISTORY BUTTON
               // ==================================================
 
               OutlinedButton.icon(
                 onPressed:
-                _openReceiveRequests,
+                _openSwapHistory,
                 icon: const Icon(
-                  Icons
-                      .request_quote_outlined,
+                  Icons.swap_horiz,
                 ),
-                label: const Text(
-                  'Receive Requests',
+                label:
+                const Text(
+                  'Swap History',
                 ),
               ),
             ],
@@ -623,26 +885,31 @@ class _HomeScreenState
       ),
 
       // ==========================================================
-      // NAVIGATION
+      // BOTTOM NAVIGATION
       // ==========================================================
 
       bottomNavigationBar:
       NavigationBar(
         selectedIndex: 0,
         onDestinationSelected:
-            (index) {
-          if (index == 1) {
-            _showMessage(
-              'Assets screen coming soon',
-            );
-          }
+            (int index) {
+          switch (index) {
+            case 0:
+              break;
 
-          if (index == 2) {
-            _openP2P();
-          }
+            case 1:
+              _showMessage(
+                'Assets screen coming soon',
+              );
+              break;
 
-          if (index == 3) {
-            _openProfile();
+            case 2:
+              _openP2P();
+              break;
+
+            case 3:
+              _openProfile();
+              break;
           }
         },
         destinations: const [
@@ -685,140 +952,6 @@ class _HomeScreenState
             label: 'Profile',
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ==================================================================
-// TRANSACTION CARD
-// ==================================================================
-
-class _TransactionCard
-    extends StatelessWidget {
-  final WalletTransaction transaction;
-  final String time;
-
-  const _TransactionCard({
-    required this.transaction,
-    required this.time,
-  });
-
-  @override
-  Widget build(
-      BuildContext context,
-      ) {
-    final bool received =
-        transaction.type
-            .toLowerCase() ==
-            'received';
-
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
-
-    return Card(
-      margin:
-      const EdgeInsets.only(
-        bottom: 10,
-      ),
-      child: Padding(
-        padding:
-        const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor:
-              received
-                  ? Colors.green
-                  .withValues(
-                alpha: 0.15,
-              )
-                  : Colors.red
-                  .withValues(
-                alpha: 0.15,
-              ),
-              child: Icon(
-                received
-                    ? Icons
-                    .arrow_downward
-                    : Icons
-                    .arrow_upward,
-                color: received
-                    ? Colors.green
-                    : Colors.red,
-              ),
-            ),
-
-            const SizedBox(
-              width: 14,
-            ),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-                children: [
-                  Text(
-                    transaction.type,
-                    style:
-                    const TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                      FontWeight
-                          .bold,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    '${transaction.asset} • '
-                        '${transaction.network}',
-                    style: TextStyle(
-                      color:
-                      colorScheme
-                          .onSurfaceVariant,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 3,
-                  ),
-
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color:
-                      colorScheme
-                          .onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(
-              width: 10,
-            ),
-
-            Text(
-              '${received ? '+' : '-'}'
-                  '${transaction.amount.toStringAsFixed(2)} '
-                  '${transaction.asset}',
-              style: TextStyle(
-                fontWeight:
-                FontWeight.bold,
-                color: received
-                    ? Colors.green
-                    : Colors.red,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
