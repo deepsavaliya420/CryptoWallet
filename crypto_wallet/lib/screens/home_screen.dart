@@ -11,15 +11,20 @@ import '../widgets/wallet_balance_card.dart';
 import 'notifications_screen.dart';
 import 'p2p_screen.dart';
 import 'profile_screen.dart';
+import 'send_receive_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+  });
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() =>
+      _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
+class _HomeScreenState
+    extends State<HomeScreen>
     with WidgetsBindingObserver {
   List<Asset> assets = [];
 
@@ -54,71 +59,211 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  // ============================================================
+  // LOAD HOME DATA
+  // ============================================================
+
   Future<void> _loadWalletData() async {
-    final walletAssets =
-    await WalletService.getAssets();
+    try {
+      final walletAssets =
+      await WalletService.getAssets();
 
-    final walletBalance =
-    await WalletService.getTotalBalance();
+      final walletBalance =
+      await WalletService.getTotalBalance();
 
-    final walletTransactions =
-    await TransactionService.getTransactions();
+      final walletTransactions =
+      await TransactionService.getRecentTransactions(
+        limit: 3,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        assets = walletAssets;
+        totalBalance = walletBalance;
+        transactions = walletTransactions;
+        isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+
+      _showMessage(
+        _cleanError(error),
+        isError: true,
+      );
+    }
+  }
+
+  // ============================================================
+  // SEND / RECEIVE
+  // ============================================================
+
+  Future<void> _openSendReceive(
+      TransferMode mode,
+      ) async {
+    final result =
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            SendReceiveScreen(
+              mode: mode,
+            ),
+      ),
+    );
 
     if (!mounted) {
       return;
     }
 
-    setState(() {
-      assets = walletAssets;
+    /*
+     * Always refresh when returning from Send/Receive.
+     *
+     * This is important because:
+     *
+     * Send    -> balance decreases
+     * Receive -> balance increases
+     * Both    -> transaction list changes
+     */
 
-      totalBalance = walletBalance;
+    await _loadWalletData();
 
-      transactions = walletTransactions.take(3).toList();
+    if (!mounted) {
+      return;
+    }
 
-      isLoading = false;
-    });
+    if (result == true) {
+      _showMessage(
+        mode == TransferMode.send
+            ? 'USDT sent successfully.'
+            : 'USDT received successfully.',
+      );
+    }
   }
 
-  void openProfile(BuildContext context) {
-    Navigator.push(
+  // ============================================================
+  // PROFILE
+  // ============================================================
+
+  Future<void> _openProfile() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
         const ProfileScreen(),
       ),
-    ).then((_) {
-      _loadWalletData();
-    });
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadWalletData();
   }
 
-  void openP2P(BuildContext context) {
-    Navigator.push(
+  // ============================================================
+  // P2P
+  // ============================================================
+
+  Future<void> _openP2P() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
         const P2PScreen(),
       ),
-    ).then((_) {
-      _loadWalletData();
-    });
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadWalletData();
   }
 
-  void showMessage(
-      BuildContext context,
-      String message,
-      ) {
-    ScaffoldMessenger.of(context).showSnackBar(
+  // ============================================================
+  // RECEIVE REQUESTS
+  // ============================================================
+
+  Future<void> _openReceiveRequests() async {
+    /*
+     * We import this screen dynamically through the local
+     * navigation function below.
+     */
+
+    await Navigator.pushNamed(
+      context,
+      '/receive-requests',
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadWalletData();
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+      String message, {
+        bool isError = false,
+      }) {
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(message),
+        backgroundColor:
+        isError ? Colors.red : null,
+        behavior:
+        SnackBarBehavior.floating,
         duration:
         const Duration(seconds: 2),
       ),
     );
   }
 
-  String _formatBalance(double balance) {
+  String _cleanError(
+      Object error,
+      ) {
+    return error
+        .toString()
+        .replaceFirst(
+      'Bad state: ',
+      '',
+    )
+        .replaceFirst(
+      'Exception: ',
+      '',
+    );
+  }
+
+  // ============================================================
+  // BALANCE
+  // ============================================================
+
+  String _formatBalance(
+      double balance,
+      ) {
     return '\$${balance.toStringAsFixed(2)}';
   }
+
+  // ============================================================
+  // TRANSACTION TIME
+  // ============================================================
 
   String _formatTransactionTime(
       DateTime timestamp,
@@ -144,23 +289,35 @@ class _HomeScreenState extends State<HomeScreen>
       return 'Yesterday, ${_formatTime(timestamp)}';
     }
 
-    return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    return '${timestamp.day}/'
+        '${timestamp.month}/'
+        '${timestamp.year}';
   }
 
-  String _formatTime(DateTime dateTime) {
+  String _formatTime(
+      DateTime dateTime,
+      ) {
     final hour =
     dateTime.hour % 12 == 0
         ? 12
         : dateTime.hour % 12;
 
     final minute =
-    dateTime.minute.toString().padLeft(2, '0');
+    dateTime.minute
+        .toString()
+        .padLeft(2, '0');
 
     final period =
-    dateTime.hour >= 12 ? 'PM' : 'AM';
+    dateTime.hour >= 12
+        ? 'PM'
+        : 'AM';
 
     return '$hour:$minute $period';
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -169,12 +326,14 @@ class _HomeScreenState extends State<HomeScreen>
         title: const Text(
           'ChainVault',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight:
+            FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            tooltip: 'Notifications',
+            tooltip:
+            'Notifications',
             onPressed: () {
               Navigator.push(
                 context,
@@ -188,29 +347,41 @@ class _HomeScreenState extends State<HomeScreen>
               Icons.notifications_outlined,
             ),
           ),
+
           Padding(
             padding:
-            const EdgeInsets.only(right: 12),
+            const EdgeInsets.only(
+              right: 12,
+            ),
             child: IconButton(
               tooltip: 'Profile',
-              onPressed: () {
-                openProfile(context);
-              },
+              onPressed:
+              _openProfile,
               icon: const Icon(
-                Icons.account_circle_outlined,
+                Icons
+                    .account_circle_outlined,
               ),
             ),
           ),
         ],
       ),
+
+      // ========================================================
+      // BODY
+      // ========================================================
+
       body: isLoading
           ? const Center(
-        child: CircularProgressIndicator(),
+        child:
+        CircularProgressIndicator(),
       )
           : SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadWalletData,
+          onRefresh:
+          _loadWalletData,
           child: ListView(
+            physics:
+            const AlwaysScrollableScrollPhysics(),
             padding:
             const EdgeInsets.fromLTRB(
               16,
@@ -226,11 +397,14 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              const SizedBox(height: 4),
+              const SizedBox(
+                height: 4,
+              ),
 
               Text(
                 'Your Wallet',
-                style: Theme.of(context)
+                style:
+                Theme.of(context)
                     .textTheme
                     .headlineSmall
                     ?.copyWith(
@@ -239,66 +413,101 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(
+                height: 18,
+              ),
+
+              // ==================================================
+              // BALANCE
+              // ==================================================
 
               WalletBalanceCard(
                 balance:
                 _formatBalance(
                   totalBalance,
                 ),
-                change: '+4.82% today',
+                change:
+                '+4.82% today',
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(
+                height: 24,
+              ),
+
+              // ==================================================
+              // QUICK ACTIONS
+              // ==================================================
 
               const SectionTitle(
-                title: 'Quick Actions',
+                title:
+                'Quick Actions',
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
 
               Row(
                 children: [
+                  // ==============================================
+                  // SEND
+                  // ==============================================
+
                   Expanded(
-                    child: ActionCard(
-                      icon:
-                      Icons.arrow_upward,
+                    child:
+                    ActionCard(
+                      icon: Icons
+                          .arrow_upward,
                       title: 'Send',
                       onTap: () {
-                        showMessage(
-                          context,
-                          'Send feature coming soon',
+                        _openSendReceive(
+                          TransferMode
+                              .send,
                         );
                       },
                     ),
                   ),
 
-                  const SizedBox(width: 10),
+                  const SizedBox(
+                    width: 10,
+                  ),
+
+                  // ==============================================
+                  // RECEIVE
+                  // ==============================================
 
                   Expanded(
-                    child: ActionCard(
-                      icon:
-                      Icons.arrow_downward,
-                      title: 'Receive',
+                    child:
+                    ActionCard(
+                      icon: Icons
+                          .arrow_downward,
+                      title:
+                      'Receive',
                       onTap: () {
-                        showMessage(
-                          context,
-                          'Receive feature coming soon',
+                        _openSendReceive(
+                          TransferMode
+                              .receive,
                         );
                       },
                     ),
                   ),
 
-                  const SizedBox(width: 10),
+                  const SizedBox(
+                    width: 10,
+                  ),
+
+                  // ==============================================
+                  // SWAP
+                  // ==============================================
 
                   Expanded(
-                    child: ActionCard(
-                      icon:
-                      Icons.swap_horiz,
+                    child:
+                    ActionCard(
+                      icon: Icons
+                          .swap_horiz,
                       title: 'Swap',
                       onTap: () {
-                        showMessage(
-                          context,
+                        _showMessage(
                           'Swap feature coming soon',
                         );
                       },
@@ -307,48 +516,69 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
 
-              const SizedBox(height: 26),
+              const SizedBox(
+                height: 26,
+              ),
+
+              // ==================================================
+              // ASSETS
+              // ==================================================
 
               SectionTitle(
-                title: 'Your Assets',
-                actionText: 'View All',
+                title:
+                'Your Assets',
+                actionText:
+                'View All',
                 onAction: () {
-                  showMessage(
-                    context,
+                  _showMessage(
                     'Assets screen coming soon',
                   );
                 },
               ),
 
-              const SizedBox(height: 10),
-
-              ...assets.map(
-                    (asset) => AssetCard(
-                  asset: asset,
-                ),
+              const SizedBox(
+                height: 10,
               ),
 
-              const SizedBox(height: 16),
+              ...assets.map(
+                    (asset) =>
+                    AssetCard(
+                      asset: asset,
+                    ),
+              ),
+
+              const SizedBox(
+                height: 16,
+              ),
+
+              // ==================================================
+              // RECENT TRANSACTIONS
+              // ==================================================
 
               SectionTitle(
                 title:
                 'Recent Transactions',
-                actionText: 'View All',
+                actionText:
+                'View All',
                 onAction: () {
-                  showMessage(
-                    context,
+                  _showMessage(
                     'Transactions screen coming soon',
                   );
                 },
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
 
               if (transactions.isEmpty)
                 const Padding(
                   padding:
-                  EdgeInsets.all(20),
-                  child: Center(
+                  EdgeInsets.all(
+                    20,
+                  ),
+                  child:
+                  Center(
                     child: Text(
                       'No transactions yet',
                     ),
@@ -362,32 +592,57 @@ class _HomeScreenState extends State<HomeScreen>
                       transaction,
                       time:
                       _formatTransactionTime(
-                        transaction.timestamp,
+                        transaction
+                            .timestamp,
                       ),
                     ),
+              ),
+
+              const SizedBox(
+                height: 12,
+              ),
+
+              // ==================================================
+              // RECEIVE REQUESTS
+              // ==================================================
+
+              OutlinedButton.icon(
+                onPressed:
+                _openReceiveRequests,
+                icon: const Icon(
+                  Icons
+                      .request_quote_outlined,
+                ),
+                label: const Text(
+                  'Receive Requests',
+                ),
               ),
             ],
           ),
         ),
       ),
+
+      // ==========================================================
+      // NAVIGATION
+      // ==========================================================
+
       bottomNavigationBar:
       NavigationBar(
         selectedIndex: 0,
         onDestinationSelected:
             (index) {
           if (index == 1) {
-            showMessage(
-              context,
+            _showMessage(
               'Assets screen coming soon',
             );
           }
 
           if (index == 2) {
-            openP2P(context);
+            _openP2P();
           }
 
           if (index == 3) {
-            openProfile(context);
+            _openProfile();
           }
         },
         destinations: const [
@@ -406,7 +661,8 @@ class _HomeScreenState extends State<HomeScreen>
                   .account_balance_wallet_outlined,
             ),
             selectedIcon: Icon(
-              Icons.account_balance_wallet,
+              Icons
+                  .account_balance_wallet,
             ),
             label: 'Assets',
           ),
@@ -434,7 +690,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-class _TransactionCard extends StatelessWidget {
+// ==================================================================
+// TRANSACTION CARD
+// ==================================================================
+
+class _TransactionCard
+    extends StatelessWidget {
   final WalletTransaction transaction;
   final String time;
 
@@ -444,17 +705,23 @@ class _TransactionCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context,
+      ) {
     final bool received =
-        transaction.type.toLowerCase() ==
+        transaction.type
+            .toLowerCase() ==
             'received';
 
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
     return Card(
       margin:
-      const EdgeInsets.only(bottom: 10),
+      const EdgeInsets.only(
+        bottom: 10,
+      ),
       child: Padding(
         padding:
         const EdgeInsets.all(16),
@@ -464,52 +731,69 @@ class _TransactionCard extends StatelessWidget {
               backgroundColor:
               received
                   ? Colors.green
-                  .withValues(alpha: 0.15)
+                  .withValues(
+                alpha: 0.15,
+              )
                   : Colors.red
-                  .withValues(alpha: 0.15),
+                  .withValues(
+                alpha: 0.15,
+              ),
               child: Icon(
                 received
-                    ? Icons.arrow_downward
-                    : Icons.arrow_upward,
-                color:
-                received
+                    ? Icons
+                    .arrow_downward
+                    : Icons
+                    .arrow_upward,
+                color: received
                     ? Colors.green
                     : Colors.red,
               ),
             ),
 
-            const SizedBox(width: 14),
+            const SizedBox(
+              width: 14,
+            ),
 
             Expanded(
               child: Column(
                 crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
                 children: [
                   Text(
                     transaction.type,
-                    style: const TextStyle(
+                    style:
+                    const TextStyle(
                       fontSize: 16,
                       fontWeight:
-                      FontWeight.bold,
+                      FontWeight
+                          .bold,
                     ),
                   ),
 
-                  const SizedBox(height: 4),
+                  const SizedBox(
+                    height: 4,
+                  ),
 
                   Text(
-                    '${transaction.asset} • ${transaction.network}',
+                    '${transaction.asset} • '
+                        '${transaction.network}',
                     style: TextStyle(
-                      color: colorScheme
+                      color:
+                      colorScheme
                           .onSurfaceVariant,
                     ),
                   ),
 
-                  const SizedBox(height: 3),
+                  const SizedBox(
+                    height: 3,
+                  ),
 
                   Text(
                     time,
                     style: TextStyle(
-                      color: colorScheme
+                      color:
+                      colorScheme
                           .onSurfaceVariant,
                     ),
                   ),
@@ -517,7 +801,9 @@ class _TransactionCard extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 10),
+            const SizedBox(
+              width: 10,
+            ),
 
             Text(
               '${received ? '+' : '-'}'
@@ -526,8 +812,7 @@ class _TransactionCard extends StatelessWidget {
               style: TextStyle(
                 fontWeight:
                 FontWeight.bold,
-                color:
-                received
+                color: received
                     ? Colors.green
                     : Colors.red,
               ),

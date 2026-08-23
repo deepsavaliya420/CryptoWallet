@@ -44,50 +44,41 @@ class WalletService {
 
   static bool _initialized = false;
 
-  /// Initialize wallet and load saved balances.
+  // ============================================================
+  // INITIALIZE
+  // ============================================================
+
   static Future<void> initialize() async {
     if (_initialized) {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+    await SharedPreferences.getInstance();
 
-    final savedUsdtAmount = prefs.getDouble('wallet_usdt_amount');
+    final savedUsdt =
+    prefs.getDouble('wallet_usdt_amount');
 
-    if (savedUsdtAmount != null) {
-      final index = _assets.indexWhere(
-            (asset) => asset.symbol.toUpperCase() == 'USDT',
-      );
-
-      if (index != -1) {
-        final oldAsset = _assets[index];
-
-        _assets[index] = Asset(
-          symbol: oldAsset.symbol,
-          name: oldAsset.name,
-          network: oldAsset.network,
-          amount:
-          '${savedUsdtAmount.toStringAsFixed(2)} USDT',
-          value:
-          '\$${savedUsdtAmount.toStringAsFixed(2)}',
-          change: oldAsset.change,
-          isPositive: oldAsset.isPositive,
-        );
-      }
+    if (savedUsdt != null) {
+      _setUsdtAmountInMemory(savedUsdt);
     }
 
     _initialized = true;
   }
 
-  /// Get all wallet assets.
+  // ============================================================
+  // ASSETS
+  // ============================================================
+
   static Future<List<Asset>> getAssets() async {
     await initialize();
 
     return List.unmodifiable(_assets);
   }
 
-  /// Get one asset by symbol.
-  static Future<Asset?> getAsset(String symbol) async {
+  static Future<Asset?> getAsset(
+      String symbol,
+      ) async {
     await initialize();
 
     try {
@@ -101,73 +92,169 @@ class WalletService {
     }
   }
 
-  /// Calculate total wallet balance.
+  // ============================================================
+  // TOTAL BALANCE
+  // ============================================================
+
   static Future<double> getTotalBalance() async {
     await initialize();
 
     double total = 0;
 
     for (final asset in _assets) {
-      final cleanedValue = asset.value
-          .replaceAll('\$', '')
-          .replaceAll(',', '')
-          .trim();
-
-      total += double.tryParse(cleanedValue) ?? 0;
+      total += _valueOfAsset(asset);
     }
 
     return total;
   }
 
-  /// Add an asset.
-  static Future<void> addAsset(Asset asset) async {
-    await initialize();
+  static double _valueOfAsset(
+      Asset asset,
+      ) {
+    final value = asset.value
+        .replaceAll('\$', '')
+        .replaceAll(',', '')
+        .trim();
 
-    _assets.add(asset);
+    return double.tryParse(value) ?? 0;
   }
 
-  /// Remove an asset.
-  static Future<void> removeAsset(String symbol) async {
+  // ============================================================
+  // USDT
+  // ============================================================
+
+  static Future<double> getUSDTBalance() async {
     await initialize();
 
-    _assets.removeWhere(
-          (asset) =>
-      asset.symbol.toUpperCase() ==
-          symbol.toUpperCase(),
+    final usdt =
+    await getAsset('USDT');
+
+    if (usdt == null) {
+      return 0;
+    }
+
+    return _extractAmount(
+      usdt.amount,
     );
   }
 
-  /// Add purchased crypto from a successful P2P order.
-  ///
-  /// Example:
-  /// Existing USDT = 250
-  /// P2P purchase = 500
-  /// New USDT = 750
+  // ============================================================
+  // ADD USDT
+  // ============================================================
+
+  static Future<void> addUSDT(
+      double amount,
+      ) async {
+    if (amount <= 0) {
+      throw StateError(
+        'Amount must be greater than zero.',
+      );
+    }
+
+    await initialize();
+
+    final current =
+    await getUSDTBalance();
+
+    final newBalance =
+        current + amount;
+
+    await _updateUsdtBalance(
+      newBalance,
+    );
+  }
+
+  // ============================================================
+  // SUBTRACT USDT
+  // ============================================================
+
+  static Future<void> subtractUSDT(
+      double amount,
+      ) async {
+    if (amount <= 0) {
+      throw StateError(
+        'Amount must be greater than zero.',
+      );
+    }
+
+    await initialize();
+
+    final current =
+    await getUSDTBalance();
+
+    if (amount > current) {
+      throw StateError(
+        'Insufficient USDT balance.',
+      );
+    }
+
+    final newBalance =
+        current - amount;
+
+    await _updateUsdtBalance(
+      newBalance,
+    );
+  }
+
+  // ============================================================
+  // SET USDT
+  // ============================================================
+
+  static Future<void> setUSDTBalance(
+      double amount,
+      ) async {
+    if (amount < 0) {
+      throw StateError(
+        'Balance cannot be negative.',
+      );
+    }
+
+    await initialize();
+
+    await _updateUsdtBalance(
+      amount,
+    );
+  }
+
+  // ============================================================
+  // P2P PURCHASE
+  // ============================================================
+
   static Future<void> addP2PPurchasedCrypto({
     required String asset,
     required double amount,
   }) async {
+    if (amount <= 0) {
+      return;
+    }
+
     await initialize();
 
-    final normalizedAsset = asset.toUpperCase();
+    final normalizedAsset =
+    asset.toUpperCase();
 
-    final index = _assets.indexWhere(
+    final index =
+    _assets.indexWhere(
           (item) =>
-      item.symbol.toUpperCase() == normalizedAsset,
+      item.symbol.toUpperCase() ==
+          normalizedAsset,
     );
 
     if (index == -1) {
       _assets.add(
         Asset(
           symbol: normalizedAsset,
-          name: normalizedAsset == 'USDT'
+          name:
+          normalizedAsset == 'USDT'
               ? 'Tether'
               : normalizedAsset,
-          network: normalizedAsset == 'USDT'
+          network:
+          normalizedAsset == 'USDT'
               ? 'TRON'
               : 'Unknown',
           amount:
-          '${amount.toStringAsFixed(2)} $normalizedAsset',
+          '${amount.toStringAsFixed(2)} '
+              '$normalizedAsset',
           value:
           '\$${amount.toStringAsFixed(2)}',
           change: '+0.00%',
@@ -183,20 +270,24 @@ class WalletService {
       return;
     }
 
-    final oldAsset = _assets[index];
+    final oldAsset =
+    _assets[index];
 
-    final oldAmount = _extractAmount(
+    final oldAmount =
+    _extractAmount(
       oldAsset.amount,
     );
 
-    final newAmount = oldAmount + amount;
+    final newAmount =
+        oldAmount + amount;
 
     _assets[index] = Asset(
       symbol: oldAsset.symbol,
       name: oldAsset.name,
       network: oldAsset.network,
       amount:
-      '${newAmount.toStringAsFixed(2)} ${oldAsset.symbol}',
+      '${newAmount.toStringAsFixed(2)} '
+          '${oldAsset.symbol}',
       value:
       '\$${newAmount.toStringAsFixed(2)}',
       change: oldAsset.change,
@@ -209,7 +300,74 @@ class WalletService {
     );
   }
 
-  static double _extractAmount(String amountText) {
+  // ============================================================
+  // UPDATE USDT IN MEMORY + STORAGE
+  // ============================================================
+
+  static Future<void> _updateUsdtBalance(
+      double amount,
+      ) async {
+    _setUsdtAmountInMemory(
+      amount,
+    );
+
+    await _saveAssetAmount(
+      'USDT',
+      amount,
+    );
+  }
+
+  static void _setUsdtAmountInMemory(
+      double amount,
+      ) {
+    final index =
+    _assets.indexWhere(
+          (asset) =>
+      asset.symbol.toUpperCase() ==
+          'USDT',
+    );
+
+    if (index == -1) {
+      _assets.add(
+        Asset(
+          symbol: 'USDT',
+          name: 'Tether',
+          network: 'TRON',
+          amount:
+          '${amount.toStringAsFixed(2)} USDT',
+          value:
+          '\$${amount.toStringAsFixed(2)}',
+          change: '+0.02%',
+          isPositive: true,
+        ),
+      );
+
+      return;
+    }
+
+    final oldAsset =
+    _assets[index];
+
+    _assets[index] = Asset(
+      symbol: oldAsset.symbol,
+      name: oldAsset.name,
+      network: oldAsset.network,
+      amount:
+      '${amount.toStringAsFixed(2)} USDT',
+      value:
+      '\$${amount.toStringAsFixed(2)}',
+      change: oldAsset.change,
+      isPositive: oldAsset.isPositive,
+    );
+  }
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
+  static double _extractAmount(
+      String amountText,
+      ) {
     final value = amountText
         .split(' ')
         .first
@@ -223,13 +381,16 @@ class WalletService {
       String asset,
       double amount,
       ) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    if (asset == 'USDT') {
-      await prefs.setDouble(
-        'wallet_usdt_amount',
-        amount,
-      );
+    if (asset.toUpperCase() != 'USDT') {
+      return;
     }
+
+    final prefs =
+    await SharedPreferences.getInstance();
+
+    await prefs.setDouble(
+      'wallet_usdt_amount',
+      amount,
+    );
   }
 }
