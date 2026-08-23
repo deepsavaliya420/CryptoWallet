@@ -1,0 +1,75 @@
+import '../models/p2p_offer.dart';
+
+const List<P2POffer> p2pOffers = [
+  P2POffer(
+    id: 'P2P001',
+    sellerName: 'CryptoSeller01',
+    sellerRating: '98.8%',
+    completedOrders: 1250,
+    price: 99.80,
+    availableAmount: 5000,
+    minAmount: 100,
+    maxAmount: 5000,
+    paymentMethods: [
+      'UPI',
+      'Bank Transfer',
+    ],
+  ),
+  P2POffer(
+    id: 'P2P002',
+    sellerName: 'USDTTrader',
+    sellerRating: '99.2%',
+    completedOrders: 980,
+    price: 100.00,
+    availableAmount: 10000,
+    minAmount: 500,
+    maxAmount: 10000,
+    paymentMethods: [
+      'UPI',
+      'Bank Transfer',
+      'Paytm',
+    ],
+  ),
+  P2POffer(
+    id: 'P2P003',
+    sellerName: 'DigitalAssets',
+    sellerRating: '97.9%',
+    completedOrders: 760,
+    price: 100.20,
+    availableAmount: 7500,
+    minAmount: 200,
+    maxAmount: 7500,
+    paymentMethods: [
+      'UPI',
+      'Google Pay',
+    ],
+  ),
+  P2POffer(
+    id: 'P2P004',
+    sellerName: 'BlockTrader',
+    sellerRating: '99.6%',
+    completedOrders: 2100,
+    price: 101.00,
+    availableAmount: 15000,
+    minAmount: 1000,
+    maxAmount: 15000,
+    paymentMethods: [
+      'Bank Transfer',
+      'UPI',
+    ],
+  ),
+  P2POffer(
+    id: 'P2P005',
+    sellerName: 'CoinMaster',
+    sellerRating: '98.5%',
+    completedOrders: 640,
+    price: 101.50,
+    availableAmount: 3000,
+    minAmount: 100,
+    maxAmount: 3000,
+    paymentMethods: [
+      'UPI',
+      'PhonePe',
+    ],
+  ),
+];

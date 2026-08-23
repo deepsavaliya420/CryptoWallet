@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import 'login_screen.dart';
 import 'personal_information_screen.dart';
@@ -11,11 +12,19 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() =>
+      _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  void logout() {
+class _ProfileScreenState
+    extends State<ProfileScreen> {
+  Future<void> logout() async {
+    await AuthService.logout();
+
+    if (!mounted) {
+      return;
+    }
+
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -42,9 +51,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(dialogContext);
-                logout();
+                await logout();
               },
               child: const Text('Logout'),
             ),
@@ -56,13 +65,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
     final user = UserService.currentUser;
 
     if (user == null) {
       return const Scaffold(
         body: Center(
-          child: Text('No user is currently logged in.'),
+          child: Text(
+            'No user is currently logged in.',
+          ),
         ),
       );
     }
@@ -84,11 +97,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             CircleAvatar(
               radius: 48,
-              backgroundColor: colorScheme.primaryContainer,
+              backgroundColor:
+              colorScheme.primaryContainer,
               child: Icon(
                 Icons.person,
                 size: 52,
-                color: colorScheme.onPrimaryContainer,
+                color:
+                colorScheme.onPrimaryContainer,
               ),
             ),
 
@@ -109,7 +124,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               user.email,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
+                color:
+                colorScheme.onSurfaceVariant,
               ),
             ),
 
@@ -117,20 +133,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(
+                padding:
+                const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(20),
+                  color:
+                  colorScheme.primaryContainer,
+                  borderRadius:
+                  BorderRadius.circular(20),
                 ),
                 child: Text(
                   'ID: ${user.userId}',
                   style: TextStyle(
-                    color: colorScheme.onPrimaryContainer,
+                    color: colorScheme
+                        .onPrimaryContainer,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                    FontWeight.w600,
                   ),
                 ),
               ),
@@ -143,8 +164,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _ProfileOption(
                     icon: Icons.person_outline,
-                    title: 'Personal Information',
-                    subtitle: 'Name, email, location and phone',
+                    title:
+                    'Personal Information',
+                    subtitle:
+                    'Name, email, location and phone',
                     onTap: () async {
                       await Navigator.push(
                         context,
@@ -154,21 +177,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       );
 
-                      setState(() {});
+                      if (mounted) {
+                        setState(() {});
+                      }
                     },
                   ),
 
                   const Divider(height: 1),
 
                   _ProfileOption(
-                    icon: Icons.security_outlined,
+                    icon:
+                    Icons.security_outlined,
                     title: 'Security',
-                    subtitle: 'Password, biometrics and protection',
+                    subtitle:
+                    'Password, biometrics and protection',
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SecurityScreen(),
+                          builder: (context) =>
+                          const SecurityScreen(),
                         ),
                       );
                     },
@@ -177,9 +205,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const Divider(height: 1),
 
                   _ProfileOption(
-                    icon: Icons.account_balance_wallet_outlined,
+                    icon: Icons
+                        .account_balance_wallet_outlined,
                     title: 'Wallet Settings',
-                    subtitle: 'Wallet, networks and currency',
+                    subtitle:
+                    'Wallet, networks and currency',
                     onTap: () async {
                       await Navigator.push(
                         context,
@@ -189,16 +219,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       );
 
-                      setState(() {});
+                      if (mounted) {
+                        setState(() {});
+                      }
                     },
                   ),
 
                   const Divider(height: 1),
 
                   _ProfileOption(
-                    icon: Icons.notifications_outlined,
+                    icon: Icons
+                        .notifications_outlined,
                     title: 'Notifications',
-                    subtitle: 'Manage notification preferences',
+                    subtitle:
+                    'Manage notification preferences',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -222,7 +256,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   colorScheme.errorContainer,
                   child: Icon(
                     Icons.logout,
-                    color: colorScheme.onErrorContainer,
+                    color:
+                    colorScheme.onErrorContainer,
                   ),
                 ),
                 title: const Text(
@@ -244,7 +279,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Text(
                 'ChainVault v1.0.0',
                 style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
+                  color:
+                  colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),
@@ -256,7 +292,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _ProfileOption extends StatelessWidget {
+class _ProfileOption
+    extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
@@ -271,18 +308,22 @@ class _ProfileOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
+      contentPadding:
+      const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 7,
       ),
       leading: CircleAvatar(
-        backgroundColor: colorScheme.primaryContainer,
+        backgroundColor:
+        colorScheme.primaryContainer,
         child: Icon(
           icon,
-          color: colorScheme.onPrimaryContainer,
+          color:
+          colorScheme.onPrimaryContainer,
         ),
       ),
       title: Text(
@@ -292,7 +333,8 @@ class _ProfileOption extends StatelessWidget {
         ),
       ),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing:
+      const Icon(Icons.chevron_right),
       onTap: onTap,
     );
   }

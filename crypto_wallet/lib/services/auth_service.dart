@@ -8,12 +8,16 @@ class AuthService {
   static bool get isLoggedIn =>
       UserService.currentUser != null;
 
-  /// Login user.
   static Future<bool> login({
     required String email,
     required String password,
   }) async {
-    if (email.trim().isEmpty || password.isEmpty) {
+    if (email.trim().isEmpty ||
+        password.isEmpty) {
+      return false;
+    }
+
+    if (password.length < 8) {
       return false;
     }
 
@@ -27,16 +31,19 @@ class AuthService {
       '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
     );
 
-    UserService.initializeUser(user);
+    await UserService.initializeUser(
+      user,
+      loadSavedProfile: true,
+    );
 
     return true;
   }
 
-  /// Create a new user account.
   static Future<bool> signup({
     required String fullName,
     required String email,
     required String password,
+    String location = 'India',
   }) async {
     if (fullName.trim().isEmpty ||
         email.trim().isEmpty ||
@@ -53,31 +60,40 @@ class AuthService {
       'CV-${DateTime.now().millisecondsSinceEpoch}',
       fullName: fullName.trim(),
       email: email.trim(),
-      location: 'India',
+      location: location.trim().isEmpty
+          ? 'India'
+          : location.trim(),
       phone: '',
       walletAddress:
       '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
     );
 
-    UserService.initializeUser(user);
+    await UserService.initializeUser(
+      user,
+      loadSavedProfile: false,
+    );
+
+    await UserService.updateProfile(
+      fullName: user.fullName,
+      email: user.email,
+      location: user.location,
+      phone: user.phone,
+      walletAddress: user.walletAddress,
+    );
 
     return true;
   }
 
-  /// Logout current user.
   static Future<void> logout() async {
     await UserService.clearUser();
   }
 
-  /// Password reset.
   static Future<bool> resetPassword({
     required String email,
   }) async {
     if (email.trim().isEmpty) {
       return false;
     }
-
-    // Firebase password reset will be added later.
 
     return true;
   }

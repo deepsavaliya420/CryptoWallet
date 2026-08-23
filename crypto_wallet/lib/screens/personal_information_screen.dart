@@ -17,6 +17,8 @@ class _PersonalInformationScreenState
   late final TextEditingController locationController;
   late final TextEditingController phoneController;
 
+  bool isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,7 +51,7 @@ class _PersonalInformationScreenState
     super.dispose();
   }
 
-  void saveChanges() {
+  Future<void> saveChanges() async {
     if (nameController.text.trim().isEmpty) {
       showMessage('Please enter your name.');
       return;
@@ -60,21 +62,41 @@ class _PersonalInformationScreenState
       return;
     }
 
-    UserService.updateProfile(
+    setState(() {
+      isSaving = true;
+    });
+
+    await UserService.updateProfile(
       fullName: nameController.text.trim(),
       email: emailController.text.trim(),
       location: locationController.text.trim(),
       phone: phoneController.text.trim(),
     );
 
-    showMessage('Profile updated successfully.');
+    if (!mounted) {
+      return;
+    }
 
-    Navigator.pop(context);
+    setState(() {
+      isSaving = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Profile updated successfully.',
+        ),
+      ),
+    );
+
+    Navigator.pop(context, true);
   }
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 
@@ -85,7 +107,9 @@ class _PersonalInformationScreenState
     if (user == null) {
       return const Scaffold(
         body: Center(
-          child: Text('No user is currently logged in.'),
+          child: Text(
+            'No user is currently logged in.',
+          ),
         ),
       );
     }
@@ -94,7 +118,9 @@ class _PersonalInformationScreenState
       appBar: AppBar(
         title: const Text(
           'Personal Information',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SafeArea(
@@ -124,10 +150,13 @@ class _PersonalInformationScreenState
 
             TextField(
               controller: nameController,
-              textCapitalization: TextCapitalization.words,
+              textCapitalization:
+              TextCapitalization.words,
               decoration: const InputDecoration(
                 labelText: 'Full Name',
-                prefixIcon: Icon(Icons.person_outline),
+                prefixIcon: Icon(
+                  Icons.person_outline,
+                ),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -136,10 +165,13 @@ class _PersonalInformationScreenState
 
             TextField(
               controller: emailController,
-              keyboardType: TextInputType.emailAddress,
+              keyboardType:
+              TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
+                prefixIcon: Icon(
+                  Icons.email_outlined,
+                ),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -150,7 +182,9 @@ class _PersonalInformationScreenState
               controller: locationController,
               decoration: const InputDecoration(
                 labelText: 'Location',
-                prefixIcon: Icon(Icons.location_on_outlined),
+                prefixIcon: Icon(
+                  Icons.location_on_outlined,
+                ),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -162,7 +196,9 @@ class _PersonalInformationScreenState
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
                 labelText: 'Phone',
-                prefixIcon: Icon(Icons.phone_outlined),
+                prefixIcon: Icon(
+                  Icons.phone_outlined,
+                ),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -183,7 +219,9 @@ class _PersonalInformationScreenState
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.badge_outlined),
+                    leading: const Icon(
+                      Icons.badge_outlined,
+                    ),
                     title: const Text('User ID'),
                     subtitle: Text(user.userId),
                   ),
@@ -205,10 +243,29 @@ class _PersonalInformationScreenState
 
             const SizedBox(height: 28),
 
-            FilledButton.icon(
-              onPressed: saveChanges,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Save Changes'),
+            SizedBox(
+              height: 52,
+              child: FilledButton.icon(
+                onPressed:
+                isSaving ? null : saveChanges,
+                icon: isSaving
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child:
+                  CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Icon(
+                  Icons.save_outlined,
+                ),
+                label: Text(
+                  isSaving
+                      ? 'Saving...'
+                      : 'Save Changes',
+                ),
+              ),
             ),
           ],
         ),

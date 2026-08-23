@@ -16,6 +16,7 @@ class TransactionService {
         const Duration(hours: 2),
       ),
     ),
+
     WalletTransaction(
       id: 'TX-10002',
       type: 'Sent',
@@ -30,6 +31,7 @@ class TransactionService {
         const Duration(days: 1),
       ),
     ),
+
     WalletTransaction(
       id: 'TX-10003',
       type: 'Received',
@@ -47,25 +49,43 @@ class TransactionService {
   ];
 
   /// Get all transactions.
-  static Future<List<WalletTransaction>> getTransactions() async {
+  static Future<List<WalletTransaction>>
+  getTransactions() async {
     return List.unmodifiable(_transactions);
   }
 
-  /// Get a single transaction by ID.
+  /// Get recent transactions.
+  static Future<List<WalletTransaction>>
+  getRecentTransactions({
+    int limit = 3,
+  }) async {
+    final transactions =
+    List<WalletTransaction>.from(_transactions);
+
+    transactions.sort(
+          (a, b) => b.timestamp.compareTo(a.timestamp),
+    );
+
+    return transactions.take(limit).toList();
+  }
+
+  /// Get transaction by ID.
   static Future<WalletTransaction?> getTransaction(
       String transactionId,
       ) async {
     try {
       return _transactions.firstWhere(
-            (transaction) => transaction.id == transactionId,
+            (transaction) =>
+        transaction.id == transactionId,
       );
     } catch (_) {
       return null;
     }
   }
 
-  /// Get transactions for a specific cryptocurrency.
-  static Future<List<WalletTransaction>> getTransactionsByAsset(
+  /// Get transactions for a specific asset.
+  static Future<List<WalletTransaction>>
+  getTransactionsByAsset(
       String asset,
       ) async {
     return _transactions
@@ -77,15 +97,19 @@ class TransactionService {
         .toList();
   }
 
-  /// Add a new transaction.
+  /// Add a transaction.
   static Future<void> addTransaction(
       WalletTransaction transaction,
       ) async {
-    _transactions.insert(0, transaction);
+    _transactions.insert(
+      0,
+      transaction,
+    );
   }
 
-  /// Create a demo transaction.
-  static Future<WalletTransaction> createTransaction({
+  /// Create normal transaction.
+  static Future<WalletTransaction>
+  createTransaction({
     required String type,
     required String asset,
     required String network,
@@ -95,7 +119,8 @@ class TransactionService {
     required String to,
   }) async {
     final transaction = WalletTransaction(
-      id: 'TX-${DateTime.now().millisecondsSinceEpoch}',
+      id:
+      'TX-${DateTime.now().millisecondsSinceEpoch}',
       type: type,
       asset: asset,
       network: network,
@@ -107,17 +132,53 @@ class TransactionService {
       timestamp: DateTime.now(),
     );
 
-    _transactions.insert(0, transaction);
+    _transactions.insert(
+      0,
+      transaction,
+    );
 
     return transaction;
   }
 
-  /// Remove a transaction.
+  /// Create completed P2P received transaction.
+  static Future<WalletTransaction>
+  createP2PReceivedTransaction({
+    required String asset,
+    required String network,
+    required double amount,
+    required double value,
+    required String seller,
+    required String buyerWallet,
+  }) async {
+    final transaction = WalletTransaction(
+      id:
+      'P2P-${DateTime.now().millisecondsSinceEpoch}',
+      type: 'Received',
+      asset: asset,
+      network: network,
+      amount: amount,
+      value: value,
+      from: seller,
+      to: buyerWallet,
+      status: 'Completed',
+      timestamp: DateTime.now(),
+    );
+
+    _transactions.insert(
+      0,
+      transaction,
+    );
+
+    return transaction;
+  }
+
+  /// Delete transaction.
   static Future<void> deleteTransaction(
       String transactionId,
       ) async {
     _transactions.removeWhere(
-          (transaction) => transaction.id == transactionId,
+          (transaction) =>
+      transaction.id == transactionId,
     );
   }
 
