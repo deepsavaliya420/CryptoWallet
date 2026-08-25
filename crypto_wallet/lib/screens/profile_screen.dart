@@ -7,9 +7,12 @@ import 'personal_information_screen.dart';
 import 'security_screen.dart';
 import 'wallet_settings_screen.dart';
 import 'notification_settings_screen.dart';
+import 'customer_support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({
+    super.key,
+  });
 
   @override
   State<ProfileScreen> createState() =>
@@ -18,6 +21,10 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState
     extends State<ProfileScreen> {
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
   Future<void> logout() async {
     await AuthService.logout();
 
@@ -28,34 +35,50 @@ class _ProfileScreenState
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) => const LoginScreen(),
+        builder: (context) =>
+        const LoginScreen(),
       ),
           (route) => false,
     );
   }
+
+  // ============================================================
+  // LOGOUT DIALOG
+  // ============================================================
 
   void showLogoutDialog() {
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Logout'),
+          title: const Text(
+            'Logout',
+          ),
           content: const Text(
             'Are you sure you want to logout from ChainVault?',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(dialogContext);
+                Navigator.pop(
+                  dialogContext,
+                );
               },
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+              ),
             ),
             FilledButton(
               onPressed: () async {
-                Navigator.pop(dialogContext);
+                Navigator.pop(
+                  dialogContext,
+                );
+
                 await logout();
               },
-              child: const Text('Logout'),
+              child: const Text(
+                'Logout',
+              ),
             ),
           ],
         );
@@ -63,12 +86,37 @@ class _ProfileScreenState
     );
   }
 
+  // ============================================================
+  // CUSTOMER SUPPORT
+  // ============================================================
+
+  void openCustomerSupport() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+        const CustomerSupportScreen(),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context,
+      ) {
     final colorScheme =
         Theme.of(context).colorScheme;
 
-    final user = UserService.currentUser;
+    final user =
+        UserService.currentUser;
+
+    // ==========================================================
+    // NO USER
+    // ==========================================================
 
     if (user == null) {
       return const Scaffold(
@@ -80,99 +128,172 @@ class _ProfileScreenState
       );
     }
 
+    // ==========================================================
+    // PROFILE SCREEN
+    // ==========================================================
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Profile',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight:
+            FontWeight.bold,
           ),
         ),
       ),
+
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding:
+          const EdgeInsets.all(
+            20,
+          ),
+
           children: [
-            const SizedBox(height: 10),
+            const SizedBox(
+              height: 10,
+            ),
+
+            // ==================================================
+            // PROFILE IMAGE
+            // ==================================================
 
             CircleAvatar(
               radius: 48,
               backgroundColor:
-              colorScheme.primaryContainer,
+              colorScheme
+                  .primaryContainer,
+
               child: Icon(
                 Icons.person,
                 size: 52,
                 color:
-                colorScheme.onPrimaryContainer,
+                colorScheme
+                    .onPrimaryContainer,
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(
+              height: 16,
+            ),
+
+            // ==================================================
+            // USER NAME
+            // ==================================================
 
             Text(
               user.fullName,
-              textAlign: TextAlign.center,
+              textAlign:
+              TextAlign.center,
+
               style: const TextStyle(
                 fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                FontWeight.bold,
               ),
             ),
 
-            const SizedBox(height: 5),
+            const SizedBox(
+              height: 5,
+            ),
+
+            // ==================================================
+            // EMAIL
+            // ==================================================
 
             Text(
               user.email,
-              textAlign: TextAlign.center,
+              textAlign:
+              TextAlign.center,
+
               style: TextStyle(
                 color:
-                colorScheme.onSurfaceVariant,
+                colorScheme
+                    .onSurfaceVariant,
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
+
+            // ==================================================
+            // USER ID
+            // ==================================================
 
             Center(
               child: Container(
                 padding:
-                const EdgeInsets.symmetric(
+                const EdgeInsets
+                    .symmetric(
                   horizontal: 12,
                   vertical: 6,
                 ),
-                decoration: BoxDecoration(
+
+                decoration:
+                BoxDecoration(
                   color:
-                  colorScheme.primaryContainer,
+                  colorScheme
+                      .primaryContainer,
+
                   borderRadius:
-                  BorderRadius.circular(20),
+                  BorderRadius
+                      .circular(
+                    20,
+                  ),
                 ),
+
                 child: Text(
                   'ID: ${user.userId}',
+
                   style: TextStyle(
-                    color: colorScheme
+                    color:
+                    colorScheme
                         .onPrimaryContainer,
+
                     fontSize: 12,
+
                     fontWeight:
-                    FontWeight.w600,
+                    FontWeight
+                        .w600,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(
+              height: 30,
+            ),
+
+            // ==================================================
+            // PROFILE OPTIONS
+            // ==================================================
 
             Card(
               child: Column(
                 children: [
+                  // ============================================
+                  // PERSONAL INFORMATION
+                  // ============================================
+
                   _ProfileOption(
-                    icon: Icons.person_outline,
+                    icon:
+                    Icons
+                        .person_outline,
+
                     title:
                     'Personal Information',
+
                     subtitle:
                     'Name, email, location and phone',
+
                     onTap: () async {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
+                          builder:
+                              (context) =>
                           const PersonalInformationScreen(),
                         ),
                       );
@@ -183,38 +304,62 @@ class _ProfileScreenState
                     },
                   ),
 
-                  const Divider(height: 1),
+                  const Divider(
+                    height: 1,
+                  ),
+
+                  // ============================================
+                  // SECURITY
+                  // ============================================
 
                   _ProfileOption(
                     icon:
-                    Icons.security_outlined,
-                    title: 'Security',
+                    Icons
+                        .security_outlined,
+
+                    title:
+                    'Security',
+
                     subtitle:
                     'Password, biometrics and protection',
+
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
+                          builder:
+                              (context) =>
                           const SecurityScreen(),
                         ),
                       );
                     },
                   ),
 
-                  const Divider(height: 1),
+                  const Divider(
+                    height: 1,
+                  ),
+
+                  // ============================================
+                  // WALLET SETTINGS
+                  // ============================================
 
                   _ProfileOption(
-                    icon: Icons
+                    icon:
+                    Icons
                         .account_balance_wallet_outlined,
-                    title: 'Wallet Settings',
+
+                    title:
+                    'Wallet Settings',
+
                     subtitle:
                     'Wallet, networks and currency',
+
                     onTap: () async {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
+                          builder:
+                              (context) =>
                           const WalletSettingsScreen(),
                         ),
                       );
@@ -225,62 +370,125 @@ class _ProfileScreenState
                     },
                   ),
 
-                  const Divider(height: 1),
+                  const Divider(
+                    height: 1,
+                  ),
+
+                  // ============================================
+                  // NOTIFICATIONS
+                  // ============================================
 
                   _ProfileOption(
-                    icon: Icons
+                    icon:
+                    Icons
                         .notifications_outlined,
-                    title: 'Notifications',
+
+                    title:
+                    'Notifications',
+
                     subtitle:
                     'Manage notification preferences',
+
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
+                          builder:
+                              (context) =>
                           const NotificationSettingsScreen(),
                         ),
                       );
                     },
                   ),
+
+                  const Divider(
+                    height: 1,
+                  ),
+
+                  // ============================================
+                  // CUSTOMER SUPPORT
+                  // ============================================
+
+                  _ProfileOption(
+                    icon:
+                    Icons
+                        .support_agent_outlined,
+
+                    title:
+                    'Customer Support',
+
+                    subtitle:
+                    'Get help or contact our community',
+
+                    onTap:
+                    openCustomerSupport,
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(
+              height: 25,
+            ),
+
+            // ==================================================
+            // LOGOUT
+            // ==================================================
 
             Card(
               child: ListTile(
-                leading: CircleAvatar(
+                leading:
+                CircleAvatar(
                   backgroundColor:
-                  colorScheme.errorContainer,
+                  colorScheme
+                      .errorContainer,
+
                   child: Icon(
                     Icons.logout,
                     color:
-                    colorScheme.onErrorContainer,
+                    colorScheme
+                        .onErrorContainer,
                   ),
                 ),
-                title: const Text(
+
+                title:
+                const Text(
                   'Logout',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
+                  style:
+                  TextStyle(
+                    fontWeight:
+                    FontWeight
+                        .bold,
                   ),
                 ),
-                subtitle: const Text(
+
+                subtitle:
+                const Text(
                   'Sign out of your ChainVault account',
                 ),
-                onTap: showLogoutDialog,
+
+                onTap:
+                showLogoutDialog,
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(
+              height: 25,
+            ),
+
+            // ==================================================
+            // VERSION
+            // ==================================================
 
             Center(
               child: Text(
                 'ChainVault v1.0.0',
+
                 style: TextStyle(
                   color:
-                  colorScheme.onSurfaceVariant,
+                  colorScheme
+                      .onSurfaceVariant,
+
                   fontSize: 12,
                 ),
               ),
@@ -292,11 +500,18 @@ class _ProfileScreenState
   }
 }
 
+// =================================================================
+// PROFILE OPTION
+// =================================================================
+
 class _ProfileOption
     extends StatelessWidget {
   final IconData icon;
+
   final String title;
+
   final String subtitle;
+
   final VoidCallback onTap;
 
   const _ProfileOption({
@@ -307,7 +522,9 @@ class _ProfileOption
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context,
+      ) {
     final colorScheme =
         Theme.of(context).colorScheme;
 
@@ -317,24 +534,37 @@ class _ProfileOption
         horizontal: 16,
         vertical: 7,
       ),
+
       leading: CircleAvatar(
         backgroundColor:
-        colorScheme.primaryContainer,
+        colorScheme
+            .primaryContainer,
+
         child: Icon(
           icon,
           color:
-          colorScheme.onPrimaryContainer,
+          colorScheme
+              .onPrimaryContainer,
         ),
       ),
+
       title: Text(
         title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
+        style:
+        const TextStyle(
+          fontWeight:
+          FontWeight.w600,
         ),
       ),
-      subtitle: Text(subtitle),
+
+      subtitle:
+      Text(subtitle),
+
       trailing:
-      const Icon(Icons.chevron_right),
+      const Icon(
+        Icons.chevron_right,
+      ),
+
       onTap: onTap,
     );
   }
