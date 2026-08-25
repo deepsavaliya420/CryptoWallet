@@ -4,7 +4,7 @@ import '../models/asset.dart';
 
 class WalletService {
   // ============================================================
-  // STORAGE KEYS
+  // STORAGE
   // ============================================================
 
   static const String _balancePrefix =
@@ -24,17 +24,15 @@ class WalletService {
     'SOL': 1.50,
     'TRX': 12.0,
 
-    // Direct USD balance.
+    // Fiat
     'USD': 0.0,
-
-    // Fiat balances.
     'INR': 0.0,
     'EUR': 0.0,
     'GBP': 0.0,
     'AED': 0.0,
     'JPY': 0.0,
 
-    // Other crypto.
+    // Crypto
     'USDC': 0.0,
     'BTC': 0.0,
   };
@@ -65,25 +63,50 @@ class WalletService {
   };
 
   // ============================================================
-  // HOME BALANCE CURRENCIES
+  // CURRENCY INFORMATION
+  // ============================================================
+
+  static const Map<String, String>
+  _names = {
+    'USD': 'US Dollar',
+    'INR': 'Indian Rupee',
+    'EUR': 'Euro',
+    'GBP': 'British Pound',
+    'AED': 'UAE Dirham',
+    'JPY': 'Japanese Yen',
+
+    'USDT': 'Tether',
+    'USDC': 'USD Coin',
+    'BTC': 'Bitcoin',
+    'ETH': 'Ethereum',
+    'SOL': 'Solana',
+    'TRX': 'TRON',
+  };
+
+  static const Map<String, String>
+  _networks = {
+    'USD': 'Fiat',
+    'INR': 'Fiat',
+    'EUR': 'Fiat',
+    'GBP': 'Fiat',
+    'AED': 'Fiat',
+    'JPY': 'Fiat',
+
+    'USDT': 'TRON',
+    'USDC': 'ERC-20',
+    'BTC': 'Bitcoin',
+    'ETH': 'Ethereum',
+    'SOL': 'Solana',
+    'TRX': 'TRON',
+  };
+
+  // ============================================================
+  // HOME TOTAL BALANCE
   //
-  // IMPORTANT:
+  // INR/EUR/GBP/AED/JPY are NOT counted in Home total.
   //
-  // Home Total Balance counts ONLY these currencies.
-  //
-  // INR is intentionally NOT here.
-  // EUR is intentionally NOT here.
-  // GBP is intentionally NOT here.
-  // AED is intentionally NOT here.
-  // JPY is intentionally NOT here.
-  //
-  // Therefore:
-  //
-  // $3241
-  // - $1000 swap
-  // = $2241
-  //
-  // Even if INR becomes ₹83,500, Home remains $2241.
+  // USD IS counted because USD received through an internal
+  // reverse swap becomes an actual USD wallet balance.
   // ============================================================
 
   static const Set<String>
@@ -98,56 +121,16 @@ class WalletService {
   };
 
   // ============================================================
-  // INTERNAL BALANCES
+  // INTERNAL
   // ============================================================
 
   static final Map<String, double>
   _balances = <String, double>{};
 
+  static final List<Asset>
+  _assets = <Asset>[];
+
   static bool _initialized = false;
-
-  // ============================================================
-  // HOME ASSETS
-  // ============================================================
-
-  static final List<Asset> _assets = [
-    const Asset(
-      symbol: 'ETH',
-      name: 'Ethereum',
-      network: 'Ethereum',
-      amount: '0.82 ETH',
-      value: '\$2,009.00',
-      change: '+4.82%',
-      isPositive: true,
-    ),
-    const Asset(
-      symbol: 'USDT',
-      name: 'Tether',
-      network: 'TRON',
-      amount: '250 USDT',
-      value: '\$250.00',
-      change: '+0.02%',
-      isPositive: true,
-    ),
-    const Asset(
-      symbol: 'SOL',
-      name: 'Solana',
-      network: 'Solana',
-      amount: '1.50 SOL',
-      value: '\$277.50',
-      change: '+2.41%',
-      isPositive: true,
-    ),
-    const Asset(
-      symbol: 'TRX',
-      name: 'TRON',
-      network: 'TRON',
-      amount: '12 TRX',
-      value: '\$3.84',
-      change: '-1.24%',
-      isPositive: false,
-    ),
-  ];
 
   // ============================================================
   // INITIALIZE
@@ -165,8 +148,7 @@ class WalletService {
 
     for (final MapEntry<String, double>
     entry in _defaultBalances.entries) {
-      final String currency =
-          entry.key;
+      final String currency = entry.key;
 
       final double defaultValue =
           entry.value;
@@ -177,8 +159,7 @@ class WalletService {
           ) ??
               defaultValue;
 
-      // Backward compatibility for
-      // old USDT storage.
+      // Backward compatibility
       if (currency == 'USDT') {
         savedValue =
             prefs.getDouble(
@@ -201,10 +182,6 @@ class WalletService {
 
   // ============================================================
   // TOTAL HOME BALANCE
-  //
-  // THIS IS THE MOST IMPORTANT METHOD.
-  //
-  // INR DOES NOT ENTER THIS CALCULATION.
   // ============================================================
 
   static Future<double>
@@ -244,10 +221,10 @@ class WalletService {
     final String normalized =
     currency.trim().toUpperCase();
 
-    _validateCurrency(
-      normalized,
-    );
+    _validateCurrency(normalized);
 
+    // USD represents the total USD-valued wallet
+    // when selecting USD as source currency.
     if (normalized == 'USD') {
       return getTotalBalance();
     }
@@ -256,7 +233,7 @@ class WalletService {
   }
 
   // ============================================================
-  // GET USDT
+  // USDT
   // ============================================================
 
   static Future<double>
@@ -266,8 +243,26 @@ class WalletService {
     return _balances['USDT'] ?? 0.0;
   }
 
+  static Future<void> addUSDT(
+      double amount,
+      ) async {
+    await addCurrency(
+      currency: 'USDT',
+      amount: amount,
+    );
+  }
+
+  static Future<void> subtractUSDT(
+      double amount,
+      ) async {
+    await subtractCurrency(
+      currency: 'USDT',
+      amount: amount,
+    );
+  }
+
   // ============================================================
-  // GET INR
+  // INR
   // ============================================================
 
   static Future<double>
@@ -290,9 +285,7 @@ class WalletService {
     final String normalized =
     currency.trim().toUpperCase();
 
-    _validateCurrency(
-      normalized,
-    );
+    _validateCurrency(normalized);
 
     if (amount <= 0) {
       throw StateError(
@@ -327,9 +320,7 @@ class WalletService {
     final String normalized =
     currency.trim().toUpperCase();
 
-    _validateCurrency(
-      normalized,
-    );
+    _validateCurrency(normalized);
 
     if (amount <= 0) {
       throw StateError(
@@ -367,39 +358,13 @@ class WalletService {
   }
 
   // ============================================================
-  // ADD USDT
-  // ============================================================
-
-  static Future<void> addUSDT(
-      double amount,
-      ) async {
-    await addCurrency(
-      currency: 'USDT',
-      amount: amount,
-    );
-  }
-
-  // ============================================================
-  // SUBTRACT USDT
-  // ============================================================
-
-  static Future<void> subtractUSDT(
-      double amount,
-      ) async {
-    await subtractCurrency(
-      currency: 'USDT',
-      amount: amount,
-    );
-  }
-
-  // ============================================================
   // SEND USD
   //
-  // Example:
+  // IMPORTANT:
   //
-  // Home = $3241
-  // Send = $1000
-  // Home = $2241
+  // If actual USD exists, remove USD first.
+  //
+  // Otherwise remove USD value from crypto portfolio.
   // ============================================================
 
   static Future<void>
@@ -416,12 +381,6 @@ class WalletService {
 
     final double total =
     await getTotalBalance();
-
-    if (total <= 0) {
-      throw StateError(
-        'Wallet balance is zero.',
-      );
-    }
 
     if (usdAmount >
         total + 0.00000001) {
@@ -444,7 +403,8 @@ class WalletService {
   // ============================================================
   // RECEIVE USD
   //
-  // USD received becomes USDT internally.
+  // Keep existing behavior:
+  // received USD becomes USDT.
   // ============================================================
 
   static Future<void>
@@ -478,10 +438,6 @@ class WalletService {
     );
   }
 
-  // ============================================================
-  // COMPATIBILITY
-  // ============================================================
-
   static Future<void>
   addUsdValue(
       double usdAmount,
@@ -494,16 +450,7 @@ class WalletService {
   // ============================================================
   // SUBTRACT CURRENCY BY USD VALUE
   //
-  // USED BY SWAP.
-  //
-  // USD -> INR:
-  //
-  // subtractCurrencyByUsdValue(
-  //   currency: 'USD',
-  //   usdValue: 1000,
-  // )
-  //
-  // removes $1000 from Home balance.
+  // Used by SwapScreen.
   // ============================================================
 
   static Future<void>
@@ -522,25 +469,22 @@ class WalletService {
     final String normalized =
     currency.trim().toUpperCase();
 
-    _validateCurrency(
-      normalized,
-    );
+    _validateCurrency(normalized);
 
-    // ----------------------------------------------------------
-    // USD SOURCE
-    // ----------------------------------------------------------
-
+    // USD source:
+    // remove USD value from actual USD first,
+    // then crypto portfolio if necessary.
     if (normalized == 'USD') {
-      await sendUsd(
+      await _removeUsdValueFromPortfolio(
         usdValue,
       );
 
+      await _saveAllBalances();
+
+      _syncAssets();
+
       return;
     }
-
-    // ----------------------------------------------------------
-    // OTHER SOURCE CURRENCY
-    // ----------------------------------------------------------
 
     final double amount =
     _convertFromUsd(
@@ -555,7 +499,7 @@ class WalletService {
   }
 
   // ============================================================
-  // P2P PURCHASE
+  // P2P
   // ============================================================
 
   static Future<void>
@@ -583,9 +527,7 @@ class WalletService {
     final String normalized =
     currency.trim().toUpperCase();
 
-    _validateCurrency(
-      normalized,
-    );
+    _validateCurrency(normalized);
 
     if (amount < 0) {
       throw StateError(
@@ -619,7 +561,7 @@ class WalletService {
   }
 
   // ============================================================
-  // GET ASSET
+  // GET ONE ASSET
   // ============================================================
 
   static Future<Asset?>
@@ -645,7 +587,7 @@ class WalletService {
   }
 
   // ============================================================
-  // CONVERT TO USD
+  // USD CONVERSION
   // ============================================================
 
   static double
@@ -679,7 +621,7 @@ class WalletService {
   }
 
   // ============================================================
-  // USD -> CURRENCY
+  // USD → CURRENCY
   // ============================================================
 
   static double _convertFromUsd({
@@ -699,11 +641,23 @@ class WalletService {
   }
 
   // ============================================================
-  // REMOVE USD VALUE FROM PORTFOLIO
+  // REMOVE USD VALUE FROM WALLET
   //
-  // THIS IS USED FOR SEND AND USD SWAP.
+  // PRIORITY:
   //
-  // INR IS NEVER TOUCHED HERE.
+  // 1. Actual USD balance
+  // 2. ETH
+  // 3. USDT
+  // 4. USDC
+  // 5. SOL
+  // 6. TRX
+  // 7. BTC
+  //
+  // This fixes:
+  //
+  // INR → USD → another USD transaction
+  //
+  // where previously the USD balance was ignored.
   // ============================================================
 
   static Future<void>
@@ -713,7 +667,31 @@ class WalletService {
     double remainingUsd =
         usdAmount;
 
-    const List<String> sourceAssets = [
+    // ------------------------------------------------------------
+    // FIRST: ACTUAL USD
+    // ------------------------------------------------------------
+
+    final double currentUsd =
+        _balances['USD'] ?? 0.0;
+
+    if (currentUsd > 0) {
+      final double removeUsd =
+      currentUsd < remainingUsd
+          ? currentUsd
+          : remainingUsd;
+
+      _balances['USD'] =
+          currentUsd - removeUsd;
+
+      remainingUsd -= removeUsd;
+    }
+
+    // ------------------------------------------------------------
+    // THEN CRYPTO PORTFOLIO
+    // ------------------------------------------------------------
+
+    const List<String>
+    sourceAssets = [
       'ETH',
       'USDT',
       'USDC',
@@ -790,7 +768,8 @@ class WalletService {
       String currency,
       ) async {
     final SharedPreferences prefs =
-    await SharedPreferences.getInstance();
+    await SharedPreferences
+        .getInstance();
 
     final double amount =
         _balances[currency] ?? 0.0;
@@ -809,13 +788,14 @@ class WalletService {
   }
 
   // ============================================================
-  // SAVE EVERYTHING
+  // SAVE ALL
   // ============================================================
 
   static Future<void>
   _saveAllBalances() async {
     final SharedPreferences prefs =
-    await SharedPreferences.getInstance();
+    await SharedPreferences
+        .getInstance();
 
     for (final MapEntry<String, double>
     entry in _balances.entries) {
@@ -832,7 +812,7 @@ class WalletService {
   }
 
   // ============================================================
-  // VALIDATE CURRENCY
+  // VALIDATE
   // ============================================================
 
   static void _validateCurrency(
@@ -848,91 +828,127 @@ class WalletService {
   }
 
   // ============================================================
-  // SYNC ASSETS
+  // SYNC ALL ASSETS
+  //
+  // THIS IS THE MAIN ASSET FIX.
+  //
+  // Previously only:
+  // ETH
+  // USDT
+  // SOL
+  // TRX
+  //
+  // were synced.
+  //
+  // Now:
+  // USD
+  // INR
+  // EUR
+  // GBP
+  // AED
+  // JPY
+  // BTC
+  // USDC
+  // ETH
+  // USDT
+  // SOL
+  // TRX
+  //
+  // are synced.
   // ============================================================
 
   static void _syncAssets() {
-    _updateAsset(
-      symbol: 'ETH',
-      name: 'Ethereum',
-      network: 'Ethereum',
-      change: '+4.82%',
-      isPositive: true,
-    );
+    _assets.clear();
 
-    _updateAsset(
-      symbol: 'USDT',
-      name: 'Tether',
-      network: 'TRON',
-      change: '+0.02%',
-      isPositive: true,
-    );
+    const List<String> order = [
+      'USD',
+      'INR',
+      'EUR',
+      'GBP',
+      'AED',
+      'JPY',
+      'BTC',
+      'ETH',
+      'USDT',
+      'USDC',
+      'SOL',
+      'TRX',
+    ];
 
-    _updateAsset(
-      symbol: 'SOL',
-      name: 'Solana',
-      network: 'Solana',
-      change: '+2.41%',
-      isPositive: true,
-    );
+    for (final String symbol
+    in order) {
+      final double amount =
+          _balances[symbol] ?? 0.0;
 
-    _updateAsset(
-      symbol: 'TRX',
-      name: 'TRON',
-      network: 'TRON',
-      change: '-1.24%',
-      isPositive: false,
-    );
+      // Do not display zero assets.
+      if (amount <= 0.0000000001) {
+        continue;
+      }
+
+      final double usdValue =
+      _convertToUsd(
+        amount: amount,
+        currency: symbol,
+      );
+
+      _assets.add(
+        Asset(
+          symbol: symbol,
+          name:
+          _names[symbol] ?? symbol,
+          network:
+          _networks[symbol] ?? 'Wallet',
+          amount:
+          '${_formatAmount(amount)} $symbol',
+          value:
+          '\$${usdValue.toStringAsFixed(2)}',
+          change: _changeFor(
+            symbol,
+          ),
+          isPositive:
+          _isPositiveFor(
+            symbol,
+          ),
+        ),
+      );
+    }
   }
 
   // ============================================================
-  // UPDATE ASSET
+  // DEMO CHANGE VALUES
   // ============================================================
 
-  static void _updateAsset({
-    required String symbol,
-    required String name,
-    required String network,
-    required String change,
-    required bool isPositive,
-  }) {
-    final double amount =
-        _balances[symbol] ?? 0.0;
+  static String _changeFor(
+      String symbol,
+      ) {
+    switch (symbol) {
+      case 'ETH':
+        return '+4.82%';
 
-    final double usdValue =
-    _convertToUsd(
-      amount: amount,
-      currency: symbol,
-    );
+      case 'USDT':
+        return '+0.02%';
 
-    final Asset updated =
-    Asset(
-      symbol: symbol,
-      name: name,
-      network: network,
-      amount:
-      '${_formatAmount(amount)} $symbol',
-      value:
-      '\$${usdValue.toStringAsFixed(2)}',
-      change: change,
-      isPositive: isPositive,
-    );
+      case 'SOL':
+        return '+2.41%';
 
-    final int index =
-    _assets.indexWhere(
-          (Asset asset) =>
-      asset.symbol.toUpperCase() ==
-          symbol.toUpperCase(),
-    );
+      case 'TRX':
+        return '-1.24%';
 
-    if (index == -1) {
-      _assets.add(
-        updated,
-      );
-    } else {
-      _assets[index] =
-          updated;
+      case 'BTC':
+        return '+3.15%';
+
+      case 'USDC':
+        return '+0.01%';
+
+      default:
+        return '0.00%';
     }
+  }
+
+  static bool _isPositiveFor(
+      String symbol,
+      ) {
+    return symbol != 'TRX';
   }
 
   // ============================================================
@@ -947,37 +963,25 @@ class WalletService {
     }
 
     if (amount.abs() >= 1000) {
-      return amount.toStringAsFixed(
-        2,
-      );
+      return amount.toStringAsFixed(2);
     }
 
     if (amount.abs() >= 1) {
-      return amount.toStringAsFixed(
-        4,
-      );
+      return amount.toStringAsFixed(4);
     }
 
-    return amount.toStringAsFixed(
-      8,
-    );
+    return amount.toStringAsFixed(8);
   }
 
   // ============================================================
-  // RESET WALLET FOR TESTING
-  //
-  // IMPORTANT:
-  // Your previous code already changed the
-  // SharedPreferences balances.
-  //
-  // Run this ONCE for a clean test, then remove
-  // the call.
+  // RESET FOR TESTING
   // ============================================================
 
   static Future<void>
   resetWalletForTesting() async {
     final SharedPreferences prefs =
-    await SharedPreferences.getInstance();
+    await SharedPreferences
+        .getInstance();
 
     for (final String currency
     in _defaultBalances.keys) {
@@ -991,6 +995,7 @@ class WalletService {
     );
 
     _balances.clear();
+    _assets.clear();
 
     _initialized = false;
 

@@ -8,6 +8,8 @@ import '../widgets/action_card.dart';
 import '../widgets/asset_card.dart';
 import '../widgets/section_title.dart';
 import '../widgets/wallet_balance_card.dart';
+
+import 'asset_screen.dart';
 import 'notifications_screen.dart';
 import 'p2p_screen.dart';
 import 'profile_screen.dart';
@@ -28,6 +30,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState
     extends State<HomeScreen>
     with WidgetsBindingObserver {
+  // ============================================================
+  // STATE
+  // ============================================================
+
   List<Asset> assets = [];
 
   List<WalletTransaction> transactions = [];
@@ -35,6 +41,10 @@ class _HomeScreenState
   double totalBalance = 0.0;
 
   bool isLoading = true;
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
@@ -46,6 +56,10 @@ class _HomeScreenState
 
     _loadWalletData();
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
@@ -64,13 +78,14 @@ class _HomeScreenState
   void didChangeAppLifecycleState(
       AppLifecycleState state,
       ) {
-    if (state == AppLifecycleState.resumed) {
+    if (state ==
+        AppLifecycleState.resumed) {
       _loadWalletData();
     }
   }
 
   // ============================================================
-  // LOAD WALLET
+  // LOAD WALLET DATA
   // ============================================================
 
   Future<void> _loadWalletData() async {
@@ -112,6 +127,26 @@ class _HomeScreenState
         isError: true,
       );
     }
+  }
+
+  // ============================================================
+  // ASSETS
+  // ============================================================
+
+  Future<void> _openAssets() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+        const AssetsScreen(),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadWalletData();
   }
 
   // ============================================================
@@ -182,12 +217,6 @@ class _HomeScreenState
 
   // ============================================================
   // SWAP
-  //
-  // IMPORTANT:
-  // THIS IS THE FIX.
-  //
-  // There is NO "Swap feature coming soon" here.
-  // It directly opens SwapScreen.
   // ============================================================
 
   Future<void> _openSwap() async {
@@ -204,8 +233,7 @@ class _HomeScreenState
       return;
     }
 
-    // Refresh balance and recent transactions
-    // after returning from SwapScreen.
+    // Refresh balance, assets and transactions.
     await _loadWalletData();
 
     if (!mounted) {
@@ -514,9 +542,9 @@ class _HomeScreenState
                   Text(
                     '${transaction.asset} • '
                         '${transaction.network}',
-                    style:
-                    TextStyle(
-                      color: Theme.of(
+                    style: TextStyle(
+                      color:
+                      Theme.of(
                         context,
                       )
                           .colorScheme
@@ -532,9 +560,9 @@ class _HomeScreenState
                     _formatTransactionTime(
                       transaction.timestamp,
                     ),
-                    style:
-                    TextStyle(
-                      color: Theme.of(
+                    style: TextStyle(
+                      color:
+                      Theme.of(
                         context,
                       )
                           .colorScheme
@@ -597,7 +625,8 @@ class _HomeScreenState
             onPressed:
             _openNotifications,
             icon: const Icon(
-              Icons.notifications_outlined,
+              Icons
+                  .notifications_outlined,
             ),
           ),
 
@@ -607,12 +636,12 @@ class _HomeScreenState
               right: 8,
             ),
             child: IconButton(
-              tooltip:
-              'Profile',
+              tooltip: 'Profile',
               onPressed:
               _openProfile,
               icon: const Icon(
-                Icons.account_circle_outlined,
+                Icons
+                    .account_circle_outlined,
               ),
             ),
           ),
@@ -644,6 +673,10 @@ class _HomeScreenState
               24,
             ),
             children: [
+              // ==================================================
+              // WELCOME
+              // ==================================================
+
               const Text(
                 'Welcome back 👋',
                 style: TextStyle(
@@ -658,7 +691,9 @@ class _HomeScreenState
               Text(
                 'Your Wallet',
                 style:
-                Theme.of(context)
+                Theme.of(
+                  context,
+                )
                     .textTheme
                     .headlineSmall
                     ?.copyWith(
@@ -703,17 +738,12 @@ class _HomeScreenState
 
               Row(
                 children: [
-                  // ----------------------------------------------
-                  // SEND
-                  // ----------------------------------------------
-
                   Expanded(
                     child:
                     ActionCard(
-                      icon:
-                      Icons.arrow_upward,
-                      title:
-                      'Send',
+                      icon: Icons
+                          .arrow_upward,
+                      title: 'Send',
                       onTap:
                       _openSend,
                     ),
@@ -723,15 +753,11 @@ class _HomeScreenState
                     width: 10,
                   ),
 
-                  // ----------------------------------------------
-                  // RECEIVE
-                  // ----------------------------------------------
-
                   Expanded(
                     child:
                     ActionCard(
-                      icon:
-                      Icons.arrow_downward,
+                      icon: Icons
+                          .arrow_downward,
                       title:
                       'Receive',
                       onTap:
@@ -743,22 +769,12 @@ class _HomeScreenState
                     width: 10,
                   ),
 
-                  // ----------------------------------------------
-                  // SWAP
-                  //
-                  // THIS IS THE IMPORTANT PART.
-                  //
-                  // It calls _openSwap().
-                  // It does NOT call a "coming soon" message.
-                  // ----------------------------------------------
-
                   Expanded(
                     child:
                     ActionCard(
-                      icon:
-                      Icons.swap_horiz,
-                      title:
-                      'Swap',
+                      icon: Icons
+                          .swap_horiz,
+                      title: 'Swap',
                       onTap:
                       _openSwap,
                     ),
@@ -779,11 +795,8 @@ class _HomeScreenState
                 'Your Assets',
                 actionText:
                 'View All',
-                onAction: () {
-                  _showMessage(
-                    'Assets screen coming soon',
-                  );
-                },
+                onAction:
+                _openAssets,
               ),
 
               const SizedBox(
@@ -865,7 +878,7 @@ class _HomeScreenState
               ),
 
               // ==================================================
-              // SWAP HISTORY BUTTON
+              // SWAP HISTORY
               // ==================================================
 
               OutlinedButton.icon(
@@ -891,16 +904,17 @@ class _HomeScreenState
       bottomNavigationBar:
       NavigationBar(
         selectedIndex: 0,
+
         onDestinationSelected:
             (int index) {
           switch (index) {
             case 0:
+            // Already on Home.
               break;
 
             case 1:
-              _showMessage(
-                'Assets screen coming soon',
-              );
+            // OPEN REAL ASSETS SCREEN.
+              _openAssets();
               break;
 
             case 2:
@@ -912,6 +926,7 @@ class _HomeScreenState
               break;
           }
         },
+
         destinations: const [
           NavigationDestination(
             icon: Icon(
@@ -922,6 +937,7 @@ class _HomeScreenState
             ),
             label: 'Home',
           ),
+
           NavigationDestination(
             icon: Icon(
               Icons
@@ -933,6 +949,7 @@ class _HomeScreenState
             ),
             label: 'Assets',
           ),
+
           NavigationDestination(
             icon: Icon(
               Icons.handshake_outlined,
@@ -942,6 +959,7 @@ class _HomeScreenState
             ),
             label: 'P2P',
           ),
+
           NavigationDestination(
             icon: Icon(
               Icons.person_outline,
