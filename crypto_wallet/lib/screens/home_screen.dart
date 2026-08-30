@@ -30,10 +30,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState
     extends State<HomeScreen>
     with WidgetsBindingObserver {
-  // ============================================================
-  // STATE
-  // ============================================================
-
   List<Asset> assets = [];
 
   List<WalletTransaction> transactions = [];
@@ -41,10 +37,6 @@ class _HomeScreenState
   double totalBalance = 0.0;
 
   bool isLoading = true;
-
-  // ============================================================
-  // INIT
-  // ============================================================
 
   @override
   void initState() {
@@ -57,10 +49,6 @@ class _HomeScreenState
     _loadWalletData();
   }
 
-  // ============================================================
-  // DISPOSE
-  // ============================================================
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(
@@ -70,23 +58,14 @@ class _HomeScreenState
     super.dispose();
   }
 
-  // ============================================================
-  // APP RESUMED
-  // ============================================================
-
   @override
   void didChangeAppLifecycleState(
-      AppLifecycleState state,
-      ) {
+      AppLifecycleState state) {
     if (state ==
         AppLifecycleState.resumed) {
       _loadWalletData();
     }
   }
-
-  // ============================================================
-  // LOAD WALLET DATA
-  // ============================================================
 
   Future<void> _loadWalletData() async {
     try {
@@ -110,7 +89,8 @@ class _HomeScreenState
       setState(() {
         assets = walletAssets;
         totalBalance = walletBalance;
-        transactions = walletTransactions;
+        transactions =
+            walletTransactions;
         isLoading = false;
       });
     } catch (error) {
@@ -129,10 +109,6 @@ class _HomeScreenState
     }
   }
 
-  // ============================================================
-  // ASSETS
-  // ============================================================
-
   Future<void> _openAssets() async {
     await Navigator.push(
       context,
@@ -148,10 +124,6 @@ class _HomeScreenState
 
     await _loadWalletData();
   }
-
-  // ============================================================
-  // SEND
-  // ============================================================
 
   Future<void> _openSend() async {
     final bool? result =
@@ -182,10 +154,6 @@ class _HomeScreenState
     }
   }
 
-  // ============================================================
-  // RECEIVE
-  // ============================================================
-
   Future<void> _openReceive() async {
     final bool? result =
     await Navigator.push<bool>(
@@ -215,10 +183,6 @@ class _HomeScreenState
     }
   }
 
-  // ============================================================
-  // SWAP
-  // ============================================================
-
   Future<void> _openSwap() async {
     final bool? result =
     await Navigator.push<bool>(
@@ -233,7 +197,6 @@ class _HomeScreenState
       return;
     }
 
-    // Refresh balance, assets and transactions.
     await _loadWalletData();
 
     if (!mounted) {
@@ -246,10 +209,6 @@ class _HomeScreenState
       );
     }
   }
-
-  // ============================================================
-  // SWAP HISTORY
-  // ============================================================
 
   Future<void> _openSwapHistory() async {
     await Navigator.push(
@@ -267,10 +226,6 @@ class _HomeScreenState
     await _loadWalletData();
   }
 
-  // ============================================================
-  // P2P
-  // ============================================================
-
   Future<void> _openP2P() async {
     await Navigator.push(
       context,
@@ -286,10 +241,6 @@ class _HomeScreenState
 
     await _loadWalletData();
   }
-
-  // ============================================================
-  // PROFILE
-  // ============================================================
 
   Future<void> _openProfile() async {
     await Navigator.push(
@@ -307,10 +258,6 @@ class _HomeScreenState
     await _loadWalletData();
   }
 
-  // ============================================================
-  // NOTIFICATIONS
-  // ============================================================
-
   Future<void> _openNotifications() async {
     await Navigator.push(
       context,
@@ -320,10 +267,6 @@ class _HomeScreenState
       ),
     );
   }
-
-  // ============================================================
-  // MESSAGE
-  // ============================================================
 
   void _showMessage(
       String message, {
@@ -354,13 +297,8 @@ class _HomeScreenState
     );
   }
 
-  // ============================================================
-  // ERROR
-  // ============================================================
-
   String _cleanError(
-      Object error,
-      ) {
+      Object error) {
     return error
         .toString()
         .replaceFirst(
@@ -373,23 +311,13 @@ class _HomeScreenState
     );
   }
 
-  // ============================================================
-  // BALANCE
-  // ============================================================
-
   String _formatBalance(
-      double balance,
-      ) {
+      double balance) {
     return '\$${balance.toStringAsFixed(2)}';
   }
 
-  // ============================================================
-  // TRANSACTION TIME
-  // ============================================================
-
   String _formatTransactionTime(
-      DateTime timestamp,
-      ) {
+      DateTime timestamp) {
     final DateTime now =
     DateTime.now();
 
@@ -420,8 +348,7 @@ class _HomeScreenState
   }
 
   String _formatTime(
-      DateTime dateTime,
-      ) {
+      DateTime dateTime) {
     final int hour =
     dateTime.hour % 12 == 0
         ? 12
@@ -443,19 +370,21 @@ class _HomeScreenState
     return '$hour:$minute $period';
   }
 
-  // ============================================================
-  // TRANSACTION CARD
-  // ============================================================
-
   Widget _transactionCard(
-      WalletTransaction transaction,
-      ) {
+      WalletTransaction transaction) {
     final String type =
     transaction.type.toLowerCase();
 
     final bool isReceive =
         type == 'received' ||
             type == 'receive';
+
+    final bool isDeposit =
+        type == 'deposit';
+
+    final bool isWithdrawal =
+        type == 'withdrawal' ||
+            type == 'withdraw';
 
     final bool isSwap =
         type == 'swap';
@@ -470,14 +399,21 @@ class _HomeScreenState
           .primary;
 
       icon = Icons.swap_horiz;
-    } else if (isReceive) {
+    } else if (isReceive ||
+        isDeposit) {
       color = Colors.green;
 
-      icon = Icons.arrow_downward;
+      icon = isDeposit
+          ? Icons
+          .account_balance_wallet_outlined
+          : Icons.arrow_downward;
     } else {
       color = Colors.red;
 
-      icon = Icons.arrow_upward;
+      icon = isWithdrawal
+          ? Icons
+          .account_balance_outlined
+          : Icons.arrow_upward;
     }
 
     String amountText;
@@ -485,6 +421,14 @@ class _HomeScreenState
     if (isSwap) {
       amountText =
       '${transaction.amount.toStringAsFixed(2)} '
+          '${transaction.asset}';
+    } else if (isDeposit) {
+      amountText =
+      '+${transaction.amount.toStringAsFixed(2)} '
+          '${transaction.asset}';
+    } else if (isWithdrawal) {
+      amountText =
+      '-${transaction.amount.toStringAsFixed(2)} '
           '${transaction.asset}';
     } else {
       amountText =
@@ -500,9 +444,7 @@ class _HomeScreenState
       ),
       child: Padding(
         padding:
-        const EdgeInsets.all(
-          16,
-        ),
+        const EdgeInsets.all(16),
         child: Row(
           children: [
             CircleAvatar(
@@ -523,7 +465,8 @@ class _HomeScreenState
             Expanded(
               child: Column(
                 crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
                 children: [
                   Text(
                     transaction.type,
@@ -583,8 +526,7 @@ class _HomeScreenState
                 amountText,
                 textAlign:
                 TextAlign.end,
-                style:
-                TextStyle(
+                style: TextStyle(
                   fontWeight:
                   FontWeight.bold,
                   color: color,
@@ -597,19 +539,10 @@ class _HomeScreenState
     );
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
   Widget build(
-      BuildContext context,
-      ) {
+      BuildContext context) {
     return Scaffold(
-      // ========================================================
-      // APP BAR
-      // ========================================================
-
       appBar: AppBar(
         title: const Text(
           'ChainVault',
@@ -648,10 +581,6 @@ class _HomeScreenState
         ],
       ),
 
-      // ========================================================
-      // BODY
-      // ========================================================
-
       body: isLoading
           ? const Center(
         child:
@@ -673,13 +602,10 @@ class _HomeScreenState
               24,
             ),
             children: [
-              // ==================================================
-              // WELCOME
-              // ==================================================
-
               const Text(
                 'Welcome back 👋',
-                style: TextStyle(
+                style:
+                TextStyle(
                   fontSize: 16,
                 ),
               ),
@@ -706,10 +632,6 @@ class _HomeScreenState
                 height: 18,
               ),
 
-              // ==================================================
-              // TOTAL BALANCE
-              // ==================================================
-
               WalletBalanceCard(
                 balance:
                 _formatBalance(
@@ -722,10 +644,6 @@ class _HomeScreenState
               const SizedBox(
                 height: 24,
               ),
-
-              // ==================================================
-              // QUICK ACTIONS
-              // ==================================================
 
               const SectionTitle(
                 title:
@@ -786,10 +704,6 @@ class _HomeScreenState
                 height: 26,
               ),
 
-              // ==================================================
-              // ASSETS
-              // ==================================================
-
               SectionTitle(
                 title:
                 'Your Assets',
@@ -809,8 +723,7 @@ class _HomeScreenState
                   EdgeInsets.all(
                     20,
                   ),
-                  child:
-                  Center(
+                  child: Center(
                     child: Text(
                       'No assets yet',
                     ),
@@ -831,10 +744,6 @@ class _HomeScreenState
                 height: 24,
               ),
 
-              // ==================================================
-              // RECENT TRANSACTIONS
-              // ==================================================
-
               SectionTitle(
                 title:
                 'Recent Transactions',
@@ -854,8 +763,7 @@ class _HomeScreenState
                   EdgeInsets.all(
                     20,
                   ),
-                  child:
-                  Center(
+                  child: Center(
                     child: Text(
                       'No transactions yet',
                     ),
@@ -877,10 +785,6 @@ class _HomeScreenState
                 height: 12,
               ),
 
-              // ==================================================
-              // SWAP HISTORY
-              // ==================================================
-
               OutlinedButton.icon(
                 onPressed:
                 _openSwapHistory,
@@ -897,10 +801,6 @@ class _HomeScreenState
         ),
       ),
 
-      // ==========================================================
-      // BOTTOM NAVIGATION
-      // ==========================================================
-
       bottomNavigationBar:
       NavigationBar(
         selectedIndex: 0,
@@ -909,11 +809,9 @@ class _HomeScreenState
             (int index) {
           switch (index) {
             case 0:
-            // Already on Home.
               break;
 
             case 1:
-            // OPEN REAL ASSETS SCREEN.
               _openAssets();
               break;
 
