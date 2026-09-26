@@ -1,24 +1,12 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/asset.dart';
+import 'api_service.dart';
 
 class WalletService {
-  // ============================================================
-  // STORAGE
-  // ============================================================
-
-  static const String _balancePrefix =
-      'wallet_balance_';
-
-  static const String _legacyUsdtKey =
-      'wallet_usdt_amount';
-
   // ============================================================
   // DEFAULT BALANCES
   // ============================================================
 
-  static const Map<String, double>
-  _defaultBalances = {
+  static const Map<String, double> _defaultBalances = {
     'ETH': 0.82,
     'USDT': 250.0,
     'SOL': 1.50,
@@ -43,8 +31,7 @@ class WalletService {
   // 1 USD = rate units of the currency.
   // ============================================================
 
-  static const Map<String, double>
-  currencyRates = {
+  static const Map<String, double> currencyRates = {
     'USD': 1.0,
 
     'USDT': 1.0,
@@ -66,8 +53,7 @@ class WalletService {
   // CURRENCY INFORMATION
   // ============================================================
 
-  static const Map<String, String>
-  _names = {
+  static const Map<String, String> _names = {
     'USD': 'US Dollar',
     'INR': 'Indian Rupee',
     'EUR': 'Euro',
@@ -83,8 +69,7 @@ class WalletService {
     'TRX': 'TRON',
   };
 
-  static const Map<String, String>
-  _networks = {
+  static const Map<String, String> _networks = {
     'USD': 'Fiat',
     'INR': 'Fiat',
     'EUR': 'Fiat',
@@ -102,15 +87,9 @@ class WalletService {
 
   // ============================================================
   // HOME TOTAL BALANCE
-  //
-  // INR/EUR/GBP/AED/JPY are NOT counted in Home total.
-  //
-  // USD IS counted because USD received through an internal
-  // reverse swap becomes an actual USD wallet balance.
   // ============================================================
 
-  static const Set<String>
-  _homeBalanceCurrencies = {
+  static const Set<String> _homeBalanceCurrencies = {
     'USD',
     'ETH',
     'USDT',
@@ -124,11 +103,11 @@ class WalletService {
   // INTERNAL
   // ============================================================
 
-  static final Map<String, double>
-  _balances = <String, double>{};
+  static final Map<String, double> _balances =
+  <String, double>{};
 
-  static final List<Asset>
-  _assets = <Asset>[];
+  static final List<Asset> _assets =
+  <Asset>[];
 
   static bool _initialized = false;
 
@@ -141,51 +120,71 @@ class WalletService {
       return;
     }
 
-    final SharedPreferences prefs =
-    await SharedPreferences.getInstance();
+    try {
+      final response = await ApiService.get(
+        '/wallet',
+      );
 
-    _balances.clear();
-
-    for (final MapEntry<String, double>
-    entry in _defaultBalances.entries) {
-      final String currency = entry.key;
-
-      final double defaultValue =
-          entry.value;
-
-      double savedValue =
-          prefs.getDouble(
-            '$_balancePrefix$currency',
-          ) ??
-              defaultValue;
-
-      // Backward compatibility
-      if (currency == 'USDT') {
-        savedValue =
-            prefs.getDouble(
-              '$_balancePrefix$currency',
-            ) ??
-                prefs.getDouble(
-                  _legacyUsdtKey,
-                ) ??
-                defaultValue;
+      if (response['success'] != true ||
+          response['wallet'] == null) {
+        throw StateError(
+          'Wallet could not be loaded.',
+        );
       }
 
-      _balances[currency] =
-          savedValue;
+      final Map<String, dynamic> wallet =
+      Map<String, dynamic>.from(
+        response['wallet'],
+      );
+
+      final dynamic balancesData =
+      wallet['balances'];
+
+      _balances.clear();
+
+      for (final String currency
+      in _defaultBalances.keys) {
+        double value =
+            _defaultBalances[currency] ?? 0.0;
+
+        if (balancesData is Map) {
+          final dynamic backendValue =
+          balancesData[currency];
+
+          if (backendValue != null) {
+            value = _toDouble(
+              backendValue,
+            );
+          }
+        }
+
+        _balances[currency] = value;
+      }
+
+      _initialized = true;
+
+      _syncAssets();
+    } catch (e) {
+      _initialized = false;
+      rethrow;
     }
+  }
 
-    _initialized = true;
+  // ============================================================
+  // REFRESH
+  // ============================================================
 
-    _syncAssets();
+  static Future<void> refresh() async {
+    _initialized = false;
+
+    await initialize();
   }
 
   // ============================================================
   // TOTAL HOME BALANCE
   // ============================================================
 
-  static Future<double>
-  getTotalBalance() async {
+  static Future<double> getTotalBalance() async {
     await initialize();
 
     double total = 0.0;
@@ -212,8 +211,7 @@ class WalletService {
   // GET CURRENCY BALANCE
   // ============================================================
 
-  static Future<double>
-  getCurrencyBalance(
+  static Future<double> getCurrencyBalance(
       String currency,
       ) async {
     await initialize();
@@ -223,8 +221,6 @@ class WalletService {
 
     _validateCurrency(normalized);
 
-    // USD represents the total USD-valued wallet
-    // when selecting USD as source currency.
     if (normalized == 'USD') {
       return getTotalBalance();
     }
@@ -236,8 +232,7 @@ class WalletService {
   // USDT
   // ============================================================
 
-  static Future<double>
-  getUSDTBalance() async {
+  static Future<double> getUSDTBalance() async {
     await initialize();
 
     return _balances['USDT'] ?? 0.0;
@@ -265,8 +260,7 @@ class WalletService {
   // INR
   // ============================================================
 
-  static Future<double>
-  getINRBalance() async {
+  static Future<double> getINRBalance() async {
     await initialize();
 
     return _balances['INR'] ?? 0.0;
@@ -296,12 +290,16 @@ class WalletService {
     final double current =
         _balances[normalized] ?? 0.0;
 
-    _balances[normalized] =
+    final double newBalance =
         current + amount;
 
-    await _saveCurrency(
+    await _updateBackendBalance(
       normalized,
+      newBalance,
     );
+
+    _balances[normalized] =
+        newBalance;
 
     _syncAssets();
   }
@@ -310,8 +308,7 @@ class WalletService {
   // SUBTRACT CURRENCY
   // ============================================================
 
-  static Future<void>
-  subtractCurrency({
+  static Future<void> subtractCurrency({
     required String currency,
     required double amount,
   }) async {
@@ -347,28 +344,22 @@ class WalletService {
       double.infinity,
     );
 
+    await _updateBackendBalance(
+      normalized,
+      newBalance,
+    );
+
     _balances[normalized] =
         newBalance;
-
-    await _saveCurrency(
-      normalized,
-    );
 
     _syncAssets();
   }
 
   // ============================================================
   // SEND USD
-  //
-  // IMPORTANT:
-  //
-  // If actual USD exists, remove USD first.
-  //
-  // Otherwise remove USD value from crypto portfolio.
   // ============================================================
 
-  static Future<void>
-  sendUsd(
+  static Future<void> sendUsd(
       double usdAmount,
       ) async {
     await initialize();
@@ -391,24 +382,38 @@ class WalletService {
       );
     }
 
-    await _removeUsdValueFromPortfolio(
-      usdAmount,
+    final Map<String, double> oldBalances =
+    Map<String, double>.from(
+      _balances,
     );
 
-    await _saveAllBalances();
+    try {
+      await _removeUsdValueFromPortfolio(
+        usdAmount,
+      );
 
-    _syncAssets();
+      await _saveAllBalances();
+
+      _syncAssets();
+    } catch (e) {
+      _balances
+        ..clear()
+        ..addAll(oldBalances);
+
+      _syncAssets();
+
+      rethrow;
+    }
   }
 
   // ============================================================
   // RECEIVE USD
   //
-  // Keep existing behavior:
+  // Existing behavior:
   // received USD becomes USDT.
   // ============================================================
 
-  static Future<void>
-  receiveUsd(
+  static Future<void> receiveUsd(
       double usdAmount,
       ) async {
     await initialize();
@@ -429,8 +434,7 @@ class WalletService {
   // COMPATIBILITY
   // ============================================================
 
-  static Future<void>
-  subtractUsdValue(
+  static Future<void> subtractUsdValue(
       double usdAmount,
       ) async {
     await sendUsd(
@@ -438,8 +442,7 @@ class WalletService {
     );
   }
 
-  static Future<void>
-  addUsdValue(
+  static Future<void> addUsdValue(
       double usdAmount,
       ) async {
     await receiveUsd(
@@ -449,8 +452,6 @@ class WalletService {
 
   // ============================================================
   // SUBTRACT CURRENCY BY USD VALUE
-  //
-  // Used by SwapScreen.
   // ============================================================
 
   static Future<void>
@@ -471,9 +472,6 @@ class WalletService {
 
     _validateCurrency(normalized);
 
-    // USD source:
-    // remove USD value from actual USD first,
-    // then crypto portfolio if necessary.
     if (normalized == 'USD') {
       await _removeUsdValueFromPortfolio(
         usdValue,
@@ -517,8 +515,7 @@ class WalletService {
   // SET BALANCE
   // ============================================================
 
-  static Future<void>
-  setCurrencyBalance({
+  static Future<void> setCurrencyBalance({
     required String currency,
     required double amount,
   }) async {
@@ -535,12 +532,13 @@ class WalletService {
       );
     }
 
+    await _updateBackendBalance(
+      normalized,
+      amount,
+    );
+
     _balances[normalized] =
         amount;
-
-    await _saveCurrency(
-      normalized,
-    );
 
     _syncAssets();
   }
@@ -549,8 +547,7 @@ class WalletService {
   // GET ASSETS
   // ============================================================
 
-  static Future<List<Asset>>
-  getAssets() async {
+  static Future<List<Asset>> getAssets() async {
     await initialize();
 
     _syncAssets();
@@ -564,8 +561,7 @@ class WalletService {
   // GET ONE ASSET
   // ============================================================
 
-  static Future<Asset?>
-  getAsset(
+  static Future<Asset?> getAsset(
       String symbol,
       ) async {
     await initialize();
@@ -590,8 +586,7 @@ class WalletService {
   // USD CONVERSION
   // ============================================================
 
-  static double
-  toUsdValue({
+  static double toUsdValue({
     required double amount,
     required String currency,
   }) {
@@ -645,19 +640,13 @@ class WalletService {
   //
   // PRIORITY:
   //
-  // 1. Actual USD balance
+  // 1. Actual USD
   // 2. ETH
   // 3. USDT
   // 4. USDC
   // 5. SOL
   // 6. TRX
   // 7. BTC
-  //
-  // This fixes:
-  //
-  // INR → USD → another USD transaction
-  //
-  // where previously the USD balance was ignored.
   // ============================================================
 
   static Future<void>
@@ -666,10 +655,6 @@ class WalletService {
       ) async {
     double remainingUsd =
         usdAmount;
-
-    // ------------------------------------------------------------
-    // FIRST: ACTUAL USD
-    // ------------------------------------------------------------
 
     final double currentUsd =
         _balances['USD'] ?? 0.0;
@@ -683,12 +668,9 @@ class WalletService {
       _balances['USD'] =
           currentUsd - removeUsd;
 
-      remainingUsd -= removeUsd;
+      remainingUsd -=
+          removeUsd;
     }
-
-    // ------------------------------------------------------------
-    // THEN CRYPTO PORTFOLIO
-    // ------------------------------------------------------------
 
     const List<String>
     sourceAssets = [
@@ -760,55 +742,55 @@ class WalletService {
   }
 
   // ============================================================
-  // SAVE ONE CURRENCY
+  // UPDATE ONE BACKEND BALANCE
   // ============================================================
 
   static Future<void>
-  _saveCurrency(
+  _updateBackendBalance(
       String currency,
+      double amount,
       ) async {
-    final SharedPreferences prefs =
-    await SharedPreferences
-        .getInstance();
-
-    final double amount =
-        _balances[currency] ?? 0.0;
-
-    await prefs.setDouble(
-      '$_balancePrefix$currency',
-      amount,
+    final response = await ApiService.put(
+      '/wallet/balance',
+      {
+        'asset': currency,
+        'amount': amount,
+      },
     );
 
-    if (currency == 'USDT') {
-      await prefs.setDouble(
-        _legacyUsdtKey,
-        amount,
+    if (response['success'] != true) {
+      throw StateError(
+        response['message']?.toString() ??
+            'Wallet balance update failed.',
       );
     }
   }
 
   // ============================================================
-  // SAVE ALL
+  // SAVE ALL BALANCES TO BACKEND
   // ============================================================
 
-  static Future<void>
-  _saveAllBalances() async {
-    final SharedPreferences prefs =
-    await SharedPreferences
-        .getInstance();
-
-    for (final MapEntry<String, double>
-    entry in _balances.entries) {
-      await prefs.setDouble(
-        '$_balancePrefix${entry.key}',
-        entry.value,
-      );
-    }
-
-    await prefs.setDouble(
-      _legacyUsdtKey,
-      _balances['USDT'] ?? 0.0,
+  static Future<void> _saveAllBalances() async {
+    final Map<String, double> backup =
+    Map<String, double>.from(
+      _balances,
     );
+
+    try {
+      for (final MapEntry<String, double>
+      entry in _balances.entries) {
+        await _updateBackendBalance(
+          entry.key,
+          entry.value,
+        );
+      }
+    } catch (e) {
+      _balances
+        ..clear()
+        ..addAll(backup);
+
+      rethrow;
+    }
   }
 
   // ============================================================
@@ -829,32 +811,6 @@ class WalletService {
 
   // ============================================================
   // SYNC ALL ASSETS
-  //
-  // THIS IS THE MAIN ASSET FIX.
-  //
-  // Previously only:
-  // ETH
-  // USDT
-  // SOL
-  // TRX
-  //
-  // were synced.
-  //
-  // Now:
-  // USD
-  // INR
-  // EUR
-  // GBP
-  // AED
-  // JPY
-  // BTC
-  // USDC
-  // ETH
-  // USDT
-  // SOL
-  // TRX
-  //
-  // are synced.
   // ============================================================
 
   static void _syncAssets() {
@@ -880,8 +836,8 @@ class WalletService {
       final double amount =
           _balances[symbol] ?? 0.0;
 
-      // Do not display zero assets.
-      if (amount <= 0.0000000001) {
+      if (amount <=
+          0.0000000001) {
         continue;
       }
 
@@ -902,13 +858,10 @@ class WalletService {
           '${_formatAmount(amount)} $symbol',
           value:
           '\$${usdValue.toStringAsFixed(2)}',
-          change: _changeFor(
-            symbol,
-          ),
+          change:
+          _changeFor(symbol),
           isPositive:
-          _isPositiveFor(
-            symbol,
-          ),
+          _isPositiveFor(symbol),
         ),
       );
     }
@@ -974,31 +927,46 @@ class WalletService {
   }
 
   // ============================================================
+  // NUMBER PARSER
+  // ============================================================
+
+  static double _toDouble(
+      dynamic value,
+      ) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value?.toString() ?? '',
+    ) ??
+        0.0;
+  }
+
+  // ============================================================
   // RESET FOR TESTING
   // ============================================================
 
   static Future<void>
   resetWalletForTesting() async {
-    final SharedPreferences prefs =
-    await SharedPreferences
-        .getInstance();
-
-    for (final String currency
-    in _defaultBalances.keys) {
-      await prefs.remove(
-        '$_balancePrefix$currency',
+    for (final MapEntry<String, double>
+    entry in _defaultBalances.entries) {
+      await _updateBackendBalance(
+        entry.key,
+        entry.value,
       );
     }
 
-    await prefs.remove(
-      _legacyUsdtKey,
-    );
+    _balances
+      ..clear()
+      ..addAll(
+        _defaultBalances,
+      );
 
-    _balances.clear();
     _assets.clear();
 
-    _initialized = false;
+    _initialized = true;
 
-    await initialize();
+    _syncAssets();
   }
 }

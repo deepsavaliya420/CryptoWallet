@@ -66,36 +66,91 @@ class _PersonalInformationScreenState
       isSaving = true;
     });
 
-    await UserService.updateProfile(
-      fullName: nameController.text.trim(),
-      email: emailController.text.trim(),
-      location: locationController.text.trim(),
-      phone: phoneController.text.trim(),
-    );
+    try {
+      await UserService.updateProfile(
+        fullName: nameController.text.trim(),
+        email: emailController.text.trim(),
+        location: locationController.text.trim(),
+        phone: phoneController.text.trim(),
+      );
 
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        isSaving = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .hideCurrentSnackBar();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline_rounded,
+                color: Colors.white,
+              ),
+              SizedBox(width: 10),
+              Text(
+                'Profile updated successfully.',
+              ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        isSaving = false;
+      });
+
+      showMessage(
+        error
+            .toString()
+            .replaceFirst('Exception: ', '')
+            .replaceFirst('Bad state: ', ''),
+        isError: true,
+      );
+    }
+  }
+
+  void showMessage(
+      String message, {
+        bool isError = false,
+      }) {
     if (!mounted) {
       return;
     }
 
-    setState(() {
-      isSaving = false;
-    });
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Profile updated successfully.',
-        ),
-      ),
-    );
-
-    Navigator.pop(context, true);
-  }
-
-  void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.info_outline_rounded,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -103,12 +158,59 @@ class _PersonalInformationScreenState
   @override
   Widget build(BuildContext context) {
     final user = UserService.currentUser;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     if (user == null) {
-      return const Scaffold(
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Personal Information',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
         body: Center(
-          child: Text(
-            'No user is currently logged in.',
+          child: Padding(
+            padding: const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 82,
+                  height: 82,
+                  decoration: BoxDecoration(
+                    color:
+                    colorScheme.errorContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.person_off_outlined,
+                    size: 38,
+                    color:
+                    colorScheme.onErrorContainer,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'No User Logged In',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  'Please log in to view your personal information.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colorScheme
+                        .onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -119,156 +221,484 @@ class _PersonalInformationScreenState
         title: const Text(
           'Personal Information',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(
+            18,
+            8,
+            18,
+            30,
+          ),
           children: [
-            const Text(
-              'Profile Information',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            _buildHeader(context, user),
+
+            const SizedBox(height: 22),
+
+            _buildSectionTitle(
+              context,
+              'Profile Details',
+              'Keep your personal information up to date.',
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 13),
 
-            Text(
-              'Update your personal information below.',
-              style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant,
-              ),
-            ),
+            _buildInputCard(context),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 23),
 
-            TextField(
-              controller: nameController,
-              textCapitalization:
-              TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: Icon(
-                  Icons.person_outline,
-                ),
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            TextField(
-              controller: emailController,
-              keyboardType:
-              TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(
-                  Icons.email_outlined,
-                ),
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            TextField(
-              controller: locationController,
-              decoration: const InputDecoration(
-                labelText: 'Location',
-                prefixIcon: Icon(
-                  Icons.location_on_outlined,
-                ),
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone',
-                prefixIcon: Icon(
-                  Icons.phone_outlined,
-                ),
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
+            _buildSectionTitle(
+              context,
               'Account Information',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              'These details identify your ChainVault account.',
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 13),
 
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(
-                      Icons.badge_outlined,
-                    ),
-                    title: const Text('User ID'),
-                    subtitle: Text(user.userId),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.account_balance_wallet_outlined,
-                    ),
-                    title: const Text('Wallet Address'),
-                    subtitle: Text(
-                      user.walletAddress,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildAccountCard(context, user),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-            SizedBox(
-              height: 52,
-              child: FilledButton.icon(
-                onPressed:
-                isSaving ? null : saveChanges,
-                icon: isSaving
-                    ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child:
-                  CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
-                )
-                    : const Icon(
-                  Icons.save_outlined,
-                ),
-                label: Text(
-                  isSaving
-                      ? 'Saving...'
-                      : 'Save Changes',
-                ),
-              ),
-            ),
+            _buildSaveButton(context),
+
+            const SizedBox(height: 14),
+
+            _buildSecurityNote(context),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(
+      BuildContext context,
+      dynamic user,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    final String displayName =
+    user.fullName.trim().isEmpty
+        ? 'ChainVault User'
+        : user.fullName;
+
+    return Container(
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(23),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary
+                .withValues(alpha: 0.18),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.15,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_outline_rounded,
+              color: Colors.white,
+              size: 29,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Manage your personal profile',
+                  style: TextStyle(
+                    color: Colors.white.withValues(
+                      alpha: 0.78,
+                    ),
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(
+      BuildContext context,
+      String title,
+      String subtitle,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 11,
+            color:
+            colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputCard(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(
+          color: colorScheme.outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow
+                .withValues(alpha: 0.035),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildTextField(
+            context: context,
+            controller: nameController,
+            label: 'Full Name',
+            icon: Icons.person_outline_rounded,
+            textCapitalization:
+            TextCapitalization.words,
+          ),
+
+          const SizedBox(height: 13),
+
+          _buildTextField(
+            context: context,
+            controller: emailController,
+            label: 'Email',
+            icon: Icons.email_outlined,
+            keyboardType:
+            TextInputType.emailAddress,
+          ),
+
+          const SizedBox(height: 13),
+
+          _buildTextField(
+            context: context,
+            controller: locationController,
+            label: 'Location',
+            icon: Icons.location_on_outlined,
+          ),
+
+          const SizedBox(height: 13),
+
+          _buildTextField(
+            context: context,
+            controller: phoneController,
+            label: 'Phone',
+            icon: Icons.phone_outlined,
+            keyboardType: TextInputType.phone,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required BuildContext context,
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    TextCapitalization textCapitalization =
+        TextCapitalization.none,
+  }) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor:
+        colorScheme.surfaceContainerLow,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant
+                .withValues(alpha: 0.35),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountCard(
+      BuildContext context,
+      dynamic user,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(
+          color: colorScheme.outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow
+                .withValues(alpha: 0.035),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _AccountInfoTile(
+            icon: Icons.badge_outlined,
+            title: 'User ID',
+            value: user.userId,
+          ),
+
+          Divider(
+            height: 1,
+            indent: 70,
+            color: colorScheme.outlineVariant
+                .withValues(alpha: 0.4),
+          ),
+
+          _AccountInfoTile(
+            icon:
+            Icons.account_balance_wallet_outlined,
+            title: 'Wallet Address',
+            value: user.walletAddress.isEmpty
+                ? 'Not available'
+                : user.walletAddress,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed:
+        isSaving ? null : saveChanges,
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(17),
+          ),
+        ),
+        icon: isSaving
+            ? const SizedBox(
+          width: 20,
+          height: 20,
+          child:
+          CircularProgressIndicator(
+            strokeWidth: 2.3,
+            color: Colors.white,
+          ),
+        )
+            : const Icon(
+          Icons.save_outlined,
+        ),
+        label: Text(
+          isSaving
+              ? 'Saving Changes...'
+              : 'Save Changes',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecurityNote(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer
+            .withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.lock_outline_rounded,
+            size: 18,
+            color: colorScheme
+                .onPrimaryContainer,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Your profile information is securely associated with your ChainVault account.',
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.45,
+                color: colorScheme
+                    .onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountInfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _AccountInfoTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color: colorScheme
+                  .primaryContainer,
+              borderRadius:
+              BorderRadius.circular(13),
+            ),
+            child: Icon(
+              icon,
+              size: 21,
+              color: colorScheme
+                  .onPrimaryContainer,
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: colorScheme
+                        .onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 3,
+                  overflow:
+                  TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

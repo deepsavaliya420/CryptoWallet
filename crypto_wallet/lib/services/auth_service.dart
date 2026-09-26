@@ -1,4 +1,7 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/user_profile.dart';
+import 'api_service.dart';
 import 'user_service.dart';
 
 class AuthService {
@@ -12,8 +15,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    if (email.trim().isEmpty ||
-        password.isEmpty) {
+    if (email.trim().isEmpty || password.isEmpty) {
       return false;
     }
 
@@ -21,22 +23,54 @@ class AuthService {
       return false;
     }
 
-    final user = UserProfile(
-      userId: 'CV-${email.hashCode.abs()}',
-      fullName: 'ChainVault User',
-      email: email.trim(),
-      location: 'India',
-      phone: '',
-      walletAddress:
-      '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    );
+    try {
+      final response = await ApiService.post(
+        '/auth/login',
+        {
+          'email': email.trim(),
+          'password': password,
+        },
+      );
 
-    await UserService.initializeUser(
-      user,
-      loadSavedProfile: true,
-    );
+      if (response['success'] != true) {
+        return false;
+      }
 
-    return true;
+      final token = response['token'];
+      final userData = response['user'];
+
+      if (token == null || userData == null) {
+        return false;
+      }
+
+      final prefs =
+      await SharedPreferences.getInstance();
+
+      await prefs.setString(
+        'auth_token',
+        token.toString(),
+      );
+
+      final user = UserProfile(
+        userId: userData['userId'] ?? '',
+        fullName: userData['fullName'] ?? '',
+        email: userData['email'] ?? '',
+        location:
+        userData['location'] ?? 'India',
+        phone: userData['phone'] ?? '',
+        walletAddress:
+        userData['walletAddress'] ?? '',
+      );
+
+      await UserService.initializeUser(
+        user,
+        loadSavedProfile: true,
+      );
+
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   static Future<bool> signup({
@@ -55,36 +89,67 @@ class AuthService {
       return false;
     }
 
-    final user = UserProfile(
-      userId:
-      'CV-${DateTime.now().millisecondsSinceEpoch}',
-      fullName: fullName.trim(),
-      email: email.trim(),
-      location: location.trim().isEmpty
-          ? 'India'
-          : location.trim(),
-      phone: '',
-      walletAddress:
-      '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    );
+    try {
+      final response = await ApiService.post(
+        '/auth/register',
+        {
+          'fullName': fullName.trim(),
+          'email': email.trim(),
+          'password': password,
+          'location': location.trim().isEmpty
+              ? 'India'
+              : location.trim(),
+          'phone': '',
+        },
+      );
 
-    await UserService.initializeUser(
-      user,
-      loadSavedProfile: false,
-    );
+      if (response['success'] != true) {
+        return false;
+      }
 
-    await UserService.updateProfile(
-      fullName: user.fullName,
-      email: user.email,
-      location: user.location,
-      phone: user.phone,
-      walletAddress: user.walletAddress,
-    );
+      final token = response['token'];
+      final userData = response['user'];
 
-    return true;
+      if (token == null || userData == null) {
+        return false;
+      }
+
+      final prefs =
+      await SharedPreferences.getInstance();
+
+      await prefs.setString(
+        'auth_token',
+        token.toString(),
+      );
+
+      final user = UserProfile(
+        userId: userData['userId'] ?? '',
+        fullName: userData['fullName'] ?? '',
+        email: userData['email'] ?? '',
+        location:
+        userData['location'] ?? 'India',
+        phone: userData['phone'] ?? '',
+        walletAddress:
+        userData['walletAddress'] ?? '',
+      );
+
+      await UserService.initializeUser(
+        user,
+        loadSavedProfile: false,
+      );
+
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   static Future<void> logout() async {
+    final prefs =
+    await SharedPreferences.getInstance();
+
+    await prefs.remove('auth_token');
+
     await UserService.clearUser();
   }
 
@@ -95,6 +160,6 @@ class AuthService {
       return false;
     }
 
-    return true;
+    return false;
   }
 }

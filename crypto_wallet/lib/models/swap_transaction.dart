@@ -60,74 +60,12 @@ class SwapTransaction {
       toAmount ?? this.toAmount,
       exchangeRate:
       exchangeRate ?? this.exchangeRate,
-      fee: fee ?? this.fee,
+      fee:
+      fee ?? this.fee,
       status:
       status ?? this.status,
       timestamp:
       timestamp ?? this.timestamp,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'fromCurrency': fromCurrency,
-      'fromNetwork': fromNetwork,
-      'toCurrency': toCurrency,
-      'toNetwork': toNetwork,
-      'fromAmount': fromAmount,
-      'toAmount': toAmount,
-      'exchangeRate': exchangeRate,
-      'fee': fee,
-      'status': status,
-      'timestamp':
-      timestamp.toIso8601String(),
-    };
-  }
-
-  factory SwapTransaction.fromMap(
-      Map<String, dynamic> map,
-      ) {
-    return SwapTransaction(
-      id: map['id']?.toString() ?? '',
-      fromCurrency:
-      map['fromCurrency']?.toString() ??
-          'USD',
-      fromNetwork:
-      map['fromNetwork']?.toString() ??
-          'Wallet',
-      toCurrency:
-      map['toCurrency']?.toString() ??
-          'INR',
-      toNetwork:
-      map['toNetwork']?.toString() ??
-          'Wallet',
-      fromAmount:
-      (map['fromAmount'] as num?)
-          ?.toDouble() ??
-          0,
-      toAmount:
-      (map['toAmount'] as num?)
-          ?.toDouble() ??
-          0,
-      exchangeRate:
-      (map['exchangeRate'] as num?)
-          ?.toDouble() ??
-          0,
-      fee:
-      (map['fee'] as num?)
-          ?.toDouble() ??
-          0,
-      status:
-      map['status']?.toString() ??
-          'completed',
-      timestamp:
-      DateTime.tryParse(
-        map['timestamp']
-            ?.toString() ??
-            '',
-      ) ??
-          DateTime.now(),
     );
   }
 }

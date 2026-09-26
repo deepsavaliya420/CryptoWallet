@@ -27,12 +27,10 @@ class _SendReceiveScreenState
   final GlobalKey<FormState> _formKey =
   GlobalKey<FormState>();
 
-  final TextEditingController
-  _addressController =
+  final TextEditingController _addressController =
   TextEditingController();
 
-  final TextEditingController
-  _amountController =
+  final TextEditingController _amountController =
   TextEditingController();
 
   bool _isProcessing = false;
@@ -56,7 +54,7 @@ class _SendReceiveScreenState
   }
 
   // ============================================================
-  // LOAD TOTAL USD BALANCE
+  // LOAD BALANCE
   // ============================================================
 
   Future<void> _loadBalance() async {
@@ -121,22 +119,12 @@ class _SendReceiveScreenState
 
   // ============================================================
   // SEND USD
-  //
-  // THIS IS THE IMPORTANT FIX.
-  //
-  // We check the TOTAL USD wallet balance,
-  // not just USDT.
-  //
-  // Then WalletService.sendUsd() actually
-  // removes the USD value from the wallet.
   // ============================================================
 
   Future<void> _send({
     required String address,
     required double amount,
   }) async {
-    // Always get the latest balance immediately
-    // before sending.
     final double latestBalance =
     await WalletService.getTotalBalance();
 
@@ -165,18 +153,12 @@ class _SendReceiveScreenState
       const String myWalletAddress =
           'MY_WALLET';
 
-      // --------------------------------------------------------
-      // 1. ACTUALLY REMOVE USD VALUE FROM WALLET
-      // --------------------------------------------------------
-
+      // Remove USD value from wallet.
       await WalletService.sendUsd(
         amount,
       );
 
-      // --------------------------------------------------------
-      // 2. CREATE TRANSACTION
-      // --------------------------------------------------------
-
+      // Create transaction.
       await TransactionService.createTransaction(
         type: 'Sent',
         asset: 'USD',
@@ -187,10 +169,7 @@ class _SendReceiveScreenState
         to: address,
       );
 
-      // --------------------------------------------------------
-      // 3. GET NEW BALANCE
-      // --------------------------------------------------------
-
+      // Get updated balance.
       final double newBalance =
       await WalletService.getTotalBalance();
 
@@ -201,13 +180,6 @@ class _SendReceiveScreenState
       setState(() {
         _currentBalance = newBalance;
       });
-
-      // --------------------------------------------------------
-      // 4. RETURN TO HOME
-      //
-      // true tells HomeScreen to reload its
-      // balance and recent transactions.
-      // --------------------------------------------------------
 
       Navigator.pop(
         context,
@@ -232,10 +204,6 @@ class _SendReceiveScreenState
 
   // ============================================================
   // RECEIVE REQUEST
-  //
-  // Creating a request does NOT add balance.
-  // Balance is added when the request is actually
-  // completed/paid.
   // ============================================================
 
   Future<void> _createReceiveRequest({
@@ -305,9 +273,30 @@ class _SendReceiveScreenState
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
+        final colorScheme =
+            Theme.of(dialogContext).colorScheme;
+
         return AlertDialog(
-          title: const Text(
-            'Receive Request Created',
+          shape: RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(24),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline_rounded,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Request Created',
+                  style: TextStyle(
+                    fontWeight:
+                    FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
           ),
           content: Column(
             mainAxisSize:
@@ -315,43 +304,92 @@ class _SendReceiveScreenState
             crossAxisAlignment:
             CrossAxisAlignment.start,
             children: [
+              Container(
+                width: double.infinity,
+                padding:
+                const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colorScheme
+                      .primaryContainer
+                      .withValues(alpha: 0.55),
+                  borderRadius:
+                  BorderRadius.circular(15),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons
+                          .account_balance_wallet_outlined,
+                      color: colorScheme
+                          .onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${amount.toStringAsFixed(2)} USDT requested',
+                        style: TextStyle(
+                          fontWeight:
+                          FontWeight.w700,
+                          color: colorScheme
+                              .onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
               Text(
-                'Requesting '
-                    '${amount.toStringAsFixed(2)} USDT.',
+                'The sender must approve the request '
+                    'and send the USDT to your wallet.',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.45,
+                  color: colorScheme
+                      .onSurfaceVariant,
+                ),
               ),
-              const SizedBox(
-                height: 12,
-              ),
-              const Text(
-                'The sender must approve the '
-                    'request and send the USDT.',
-              ),
-              const SizedBox(
-                height: 12,
-              ),
+
+              const SizedBox(height: 15),
+
               Text(
-                'Request ID:',
-                style: Theme.of(
-                  dialogContext,
-                )
-                    .textTheme
-                    .labelLarge,
-              ),
-              const SizedBox(
-                height: 4,
-              ),
-              SelectableText(
-                requestId,
-                style:
-                const TextStyle(
+                'Request ID',
+                style: TextStyle(
+                  fontSize: 11,
                   fontWeight:
-                  FontWeight.bold,
+                  FontWeight.w700,
+                  color: colorScheme
+                      .onSurfaceVariant,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Container(
+                width: double.infinity,
+                padding:
+                const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme
+                      .surfaceContainerLow,
+                  borderRadius:
+                  BorderRadius.circular(12),
+                ),
+                child: SelectableText(
+                  requestId,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight:
+                    FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(
+            FilledButton(
               onPressed: () {
                 Navigator.pop(
                   dialogContext,
@@ -378,14 +416,29 @@ class _SendReceiveScreenState
       return;
     }
 
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
+        content: Row(
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
+        ),
+        backgroundColor:
+        colorScheme.error,
         behavior:
         SnackBarBehavior.floating,
       ),
@@ -406,10 +459,21 @@ class _SendReceiveScreenState
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(
+              Icons.check_circle_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
+        ),
         behavior:
         SnackBarBehavior.floating,
       ),
@@ -478,8 +542,6 @@ class _SendReceiveScreenState
       return 'Enter a valid amount.';
     }
 
-    // IMPORTANT:
-    // Compare against TOTAL USD balance.
     if (isSend &&
         amount >
             _currentBalance +
@@ -498,287 +560,671 @@ class _SendReceiveScreenState
   Widget build(
       BuildContext context,
       ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
     final String title = isSend
         ? 'Send USD'
         : 'Receive USD';
 
-    final String addressLabel =
-    isSend
+    final String addressLabel = isSend
         ? 'Recipient Wallet Address'
         : 'Sender Wallet Address';
 
-    final String addressHint =
-    isSend
+    final String addressHint = isSend
         ? 'Enter wallet address to send to'
         : 'Enter wallet address to request from';
 
-    final String buttonText =
-    isSend
+    final String buttonText = isSend
         ? 'Send USD'
         : 'Create Receive Request';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight:
+            FontWeight.w800,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding:
-            const EdgeInsets.all(20),
+            const EdgeInsets.fromLTRB(
+              18,
+              8,
+              18,
+              30,
+            ),
             children: [
-              // ==================================================
-              // ICON
-              // ==================================================
-
-              Icon(
-                isSend
-                    ? Icons
-                    .arrow_upward_rounded
-                    : Icons
-                    .arrow_downward_rounded,
-                size: 52,
-              ),
-
-              const SizedBox(
-                height: 16,
-              ),
-
-              // ==================================================
-              // TITLE
-              // ==================================================
-
-              Text(
+              _buildHeroHeader(
+                context,
                 title,
-                textAlign:
-                TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(
-                  fontWeight:
-                  FontWeight.bold,
-                ),
               ),
 
-              const SizedBox(
-                height: 8,
+              const SizedBox(height: 22),
+
+              _buildBalanceCard(
+                context,
               ),
 
-              Text(
+              const SizedBox(height: 22),
+
+              _buildSectionTitle(
+                context,
+                'Transfer Details',
                 isSend
-                    ? 'Send USD to another wallet.'
-                    : 'Request USD from another wallet.',
-                textAlign:
-                TextAlign.center,
-                style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant,
-                ),
+                    ? 'Enter the wallet address and amount you want to send.'
+                    : 'Enter the wallet address and amount you want to request.',
               ),
 
-              const SizedBox(
-                height: 28,
+              const SizedBox(height: 13),
+
+              _buildFormCard(
+                context,
+                addressLabel,
+                addressHint,
               ),
 
-              // ==================================================
-              // CURRENT BALANCE
-              // ==================================================
+              const SizedBox(height: 14),
 
-              Card(
-                child: Padding(
-                  padding:
-                  const EdgeInsets.all(
-                    16,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons
-                            .account_balance_wallet_outlined,
-                      ),
-                      const SizedBox(
-                        width: 12,
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'Available Balance',
-                        ),
-                      ),
-                      Text(
-                        '\$${_currentBalance.toStringAsFixed(2)}',
-                        style:
-                        const TextStyle(
-                          fontWeight:
-                          FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              _buildNetworkCard(
+                context,
               ),
 
-              const SizedBox(
-                height: 18,
+              const SizedBox(height: 14),
+
+              _buildInfoCard(
+                context,
               ),
 
-              // ==================================================
-              // ADDRESS
-              // ==================================================
+              const SizedBox(height: 24),
 
-              TextFormField(
-                controller:
-                _addressController,
-                validator:
-                _validateAddress,
-                autocorrect: false,
-                decoration:
-                InputDecoration(
-                  labelText:
-                  addressLabel,
-                  hintText:
-                  addressHint,
-                  prefixIcon:
-                  const Icon(
-                    Icons
-                        .account_balance_wallet_outlined,
-                  ),
-                  border:
-                  const OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(
-                height: 18,
-              ),
-
-              // ==================================================
-              // AMOUNT
-              // ==================================================
-
-              TextFormField(
-                controller:
-                _amountController,
-                validator:
-                _validateAmount,
-                keyboardType:
-                const TextInputType
-                    .numberWithOptions(
-                  decimal: true,
-                ),
-                decoration:
-                const InputDecoration(
-                  labelText:
-                  'Amount (USD)',
-                  hintText:
-                  'Enter amount',
-                  prefixIcon:
-                  Icon(
-                    Icons
-                        .attach_money,
-                  ),
-                  suffixText:
-                  'USD',
-                  border:
-                  OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(
-                height: 18,
-              ),
-
-              // ==================================================
-              // NETWORK
-              // ==================================================
-
-              Card(
-                child: ListTile(
-                  leading:
-                  const Icon(
-                    Icons.lan_outlined,
-                  ),
-                  title:
-                  const Text(
-                    'Network',
-                  ),
-                  subtitle:
-                  const Text(
-                    'TRC-20',
-                  ),
-                  trailing:
-                  const Icon(
-                    Icons.check_circle,
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              // ==================================================
-              // INFO
-              // ==================================================
-
-              Card(
-                child: Padding(
-                  padding:
-                  const EdgeInsets.all(
-                    16,
-                  ),
-                  child: Text(
-                    isSend
-                        ? 'The USD value will be deducted from your wallet after confirmation. Your Home balance will update immediately.'
-                        : 'Creating a request does not add funds immediately. The sender must approve the request and complete the transfer.',
-                    style:
-                    TextStyle(
-                      color: Theme.of(
-                        context,
-                      )
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 28,
-              ),
-
-              // ==================================================
-              // SUBMIT
-              // ==================================================
-
-              SizedBox(
-                height: 54,
-                child:
-                FilledButton(
-                  onPressed:
-                  _isProcessing
-                      ? null
-                      : _submit,
-                  child:
-                  _isProcessing
-                      ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth:
-                      2,
-                    ),
-                  )
-                      : Text(
-                    buttonText,
-                  ),
-                ),
+              _buildSubmitButton(
+                context,
+                buttonText,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HERO
+  // ============================================================
+
+  Widget _buildHeroHeader(
+      BuildContext context,
+      String title,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius:
+        BorderRadius.circular(23),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary
+                .withValues(alpha: 0.18),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.15,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isSend
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded,
+              color: Colors.white,
+              size: 31,
+            ),
+          ),
+
+          const SizedBox(width: 15),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight:
+                    FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  isSend
+                      ? 'Transfer USD securely to another wallet.'
+                      : 'Request USD from another wallet.',
+                  style: TextStyle(
+                    color: Colors.white
+                        .withValues(alpha: 0.78),
+                    fontSize: 11.5,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BALANCE
+  // ============================================================
+
+  Widget _buildBalanceCard(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow
+                .withValues(alpha: 0.035),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 47,
+            height: 47,
+            decoration: BoxDecoration(
+              color:
+              colorScheme.primaryContainer,
+              borderRadius:
+              BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons
+                  .account_balance_wallet_outlined,
+              color: colorScheme
+                  .onPrimaryContainer,
+              size: 23,
+            ),
+          ),
+
+          const SizedBox(width: 13),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Available Balance',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: colorScheme
+                        .onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '\$${_currentBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight:
+                    FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Container(
+            padding:
+            const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: colorScheme
+                  .primaryContainer
+                  .withValues(alpha: 0.65),
+              borderRadius:
+              BorderRadius.circular(20),
+            ),
+            child: Text(
+              'USD',
+              style: TextStyle(
+                color: colorScheme
+                    .onPrimaryContainer,
+                fontSize: 11,
+                fontWeight:
+                FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // SECTION TITLE
+  // ============================================================
+
+  Widget _buildSectionTitle(
+      BuildContext context,
+      String title,
+      String subtitle,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight:
+            FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 11,
+            color: colorScheme
+                .onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // FORM CARD
+  // ============================================================
+
+  Widget _buildFormCard(
+      BuildContext context,
+      String addressLabel,
+      String addressHint,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(21),
+        border: Border.all(
+          color: colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow
+                .withValues(alpha: 0.035),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          TextFormField(
+            controller:
+            _addressController,
+            validator:
+            _validateAddress,
+            autocorrect: false,
+            maxLines: 2,
+            decoration:
+            InputDecoration(
+              labelText: addressLabel,
+              hintText: addressHint,
+              prefixIcon: const Padding(
+                padding:
+                EdgeInsets.only(
+                  bottom: 22,
+                ),
+                child: Icon(
+                  Icons
+                      .account_balance_wallet_outlined,
+                ),
+              ),
+              filled: true,
+              fillColor: colorScheme
+                  .surfaceContainerLow,
+              border:
+              OutlineInputBorder(
+                borderRadius:
+                BorderRadius.circular(
+                  15,
+                ),
+                borderSide:
+                BorderSide.none,
+              ),
+              enabledBorder:
+              OutlineInputBorder(
+                borderRadius:
+                BorderRadius.circular(
+                  15,
+                ),
+                borderSide:
+                BorderSide(
+                  color: colorScheme
+                      .outlineVariant
+                      .withValues(
+                    alpha: 0.35,
+                  ),
+                ),
+              ),
+              focusedBorder:
+              OutlineInputBorder(
+                borderRadius:
+                BorderRadius.circular(
+                  15,
+                ),
+                borderSide:
+                BorderSide(
+                  color:
+                  colorScheme.primary,
+                  width: 1.4,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 13),
+
+          TextFormField(
+            controller:
+            _amountController,
+            validator:
+            _validateAmount,
+            keyboardType:
+            const TextInputType
+                .numberWithOptions(
+              decimal: true,
+            ),
+            decoration:
+            InputDecoration(
+              labelText: 'Amount (USD)',
+              hintText: 'Enter amount',
+              prefixIcon: const Icon(
+                Icons.attach_money_rounded,
+              ),
+              suffixText: 'USD',
+              filled: true,
+              fillColor: colorScheme
+                  .surfaceContainerLow,
+              border:
+              OutlineInputBorder(
+                borderRadius:
+                BorderRadius.circular(
+                  15,
+                ),
+                borderSide:
+                BorderSide.none,
+              ),
+              enabledBorder:
+              OutlineInputBorder(
+                borderRadius:
+                BorderRadius.circular(
+                  15,
+                ),
+                borderSide:
+                BorderSide(
+                  color: colorScheme
+                      .outlineVariant
+                      .withValues(
+                    alpha: 0.35,
+                  ),
+                ),
+              ),
+              focusedBorder:
+              OutlineInputBorder(
+                borderRadius:
+                BorderRadius.circular(
+                  15,
+                ),
+                borderSide:
+                BorderSide(
+                  color:
+                  colorScheme.primary,
+                  width: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // NETWORK
+  // ============================================================
+
+  Widget _buildNetworkCard(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(18),
+        border: Border.all(
+          color: colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color:
+              colorScheme.primaryContainer,
+              borderRadius:
+              BorderRadius.circular(13),
+            ),
+            child: Icon(
+              Icons.lan_outlined,
+              color: colorScheme
+                  .onPrimaryContainer,
+              size: 21,
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          const Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Network',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'TRC-20',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                    FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Icon(
+            Icons.check_circle_rounded,
+            color: Colors.green,
+            size: 22,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // INFO CARD
+  // ============================================================
+
+  Widget _buildInfoCard(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: colorScheme
+            .primaryContainer
+            .withValues(alpha: 0.42),
+        borderRadius:
+        BorderRadius.circular(17),
+      ),
+      child: Row(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 19,
+            color: colorScheme
+                .onPrimaryContainer,
+          ),
+
+          const SizedBox(width: 9),
+
+          Expanded(
+            child: Text(
+              isSend
+                  ? 'The USD value will be deducted from your wallet after confirmation. Your Home balance will update immediately.'
+                  : 'Creating a request does not add funds immediately. The sender must approve the request and complete the transfer.',
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.5,
+                color: colorScheme
+                    .onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // SUBMIT BUTTON
+  // ============================================================
+
+  Widget _buildSubmitButton(
+      BuildContext context,
+      String buttonText,
+      ) {
+    return SizedBox(
+      height: 55,
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed:
+        _isProcessing ? null : _submit,
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(17),
+          ),
+        ),
+        icon: _isProcessing
+            ? const SizedBox(
+          width: 20,
+          height: 20,
+          child:
+          CircularProgressIndicator(
+            strokeWidth: 2.3,
+            color: Colors.white,
+          ),
+        )
+            : Icon(
+          isSend
+              ? Icons
+              .arrow_upward_rounded
+              : Icons
+              .arrow_downward_rounded,
+        ),
+        label: Text(
+          _isProcessing
+              ? 'Processing...'
+              : buttonText,
+          style: const TextStyle(
+            fontSize: 14.5,
+            fontWeight:
+            FontWeight.w800,
           ),
         ),
       ),

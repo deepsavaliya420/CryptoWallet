@@ -8,13 +8,10 @@ import 'bank_details_screen.dart';
 import 'inr_transfer_screen.dart';
 
 class AssetsScreen extends StatefulWidget {
-  const AssetsScreen({
-    super.key,
-  });
+  const AssetsScreen({super.key});
 
   @override
-  State<AssetsScreen> createState() =>
-      _AssetsScreenState();
+  State<AssetsScreen> createState() => _AssetsScreenState();
 }
 
 class _AssetsScreenState extends State<AssetsScreen> {
@@ -29,18 +26,13 @@ class _AssetsScreenState extends State<AssetsScreen> {
   @override
   void initState() {
     super.initState();
-
     _loadAssets();
   }
 
   Future<void> _loadAssets() async {
     try {
-      final List<Asset> assets =
-      await WalletService.getAssets();
-
-      final double total =
-      await WalletService.getTotalBalance();
-
+      final List<Asset> assets = await WalletService.getAssets();
+      final double total = await WalletService.getTotalBalance();
       final BankAccount? bankAccount =
       await BankService.getBankAccount();
 
@@ -63,13 +55,10 @@ class _AssetsScreenState extends State<AssetsScreen> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _cleanError(error),
-          ),
-          backgroundColor: Colors.red,
+          content: Text(_cleanError(error)),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -78,14 +67,8 @@ class _AssetsScreenState extends State<AssetsScreen> {
   String _cleanError(Object error) {
     return error
         .toString()
-        .replaceFirst(
-      'Bad state: ',
-      '',
-    )
-        .replaceFirst(
-      'Exception: ',
-      '',
-    );
+        .replaceFirst('Bad state: ', '')
+        .replaceFirst('Exception: ', '');
   }
 
   IconData _iconFor(String symbol) {
@@ -158,377 +141,325 @@ class _AssetsScreenState extends State<AssetsScreen> {
         return Colors.red;
 
       default:
-        return Theme.of(context)
-            .colorScheme
-            .primary;
+        return Theme.of(context).colorScheme.primary;
     }
   }
 
-  Widget _assetCard(Asset asset) {
-    final Color color =
-    _colorFor(asset.symbol);
+  String _maskedAccountNumber(String accountNumber) {
+    if (accountNumber.isEmpty) {
+      return 'Account not available';
+    }
 
-    return Card(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: color.withValues(
-                  alpha: 0.12,
-                ),
-                borderRadius:
-                BorderRadius.circular(16),
-              ),
-              child: Icon(
-                _iconFor(asset.symbol),
-                color: color,
-                size: 26,
-              ),
-            ),
+    if (accountNumber.length <= 4) {
+      return 'Account •••• $accountNumber';
+    }
 
-            const SizedBox(
-              width: 14,
-            ),
+    return 'Account •••• ${accountNumber.substring(accountNumber.length - 4)}';
+  }
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    asset.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
+  Widget _buildPageHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
 
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    asset.symbol,
-                    style: TextStyle(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                      fontWeight:
-                      FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    asset.network,
-                    style: TextStyle(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(
-              width: 12,
-            ),
-
-            Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.end,
-              children: [
-                Text(
-                  asset.amount,
-                  textAlign: TextAlign.end,
-                  style: const TextStyle(
-                    fontWeight:
-                    FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 5,
-                ),
-
-                Text(
-                  asset.value,
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 5,
-                ),
-
-                Text(
-                  asset.change,
-                  style: TextStyle(
-                    color: asset.isPositive
-                        ? Colors.green
-                        : Colors.red,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Your Assets',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+            color: colorScheme.onSurface,
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        Text(
+          'Manage your crypto and fiat balances',
+          style: TextStyle(
+            fontSize: 14,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _totalCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Total Wallet Value',
-              style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant,
-              ),
-            ),
+    final colorScheme = Theme.of(context).colorScheme;
 
-            const SizedBox(
-              height: 8,
-            ),
-
-            Text(
-              '\$${_totalBalance.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight:
-                FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(
-              height: 6,
-            ),
-
-            const Text(
-              'USD-valued wallet balance',
-              style: TextStyle(
-                fontSize: 12,
-              ),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.primary.withValues(alpha: 0.78),
+            colorScheme.secondary,
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _bankCard() {
-    final colorScheme =
-        Theme.of(context).colorScheme;
-
-    if (_bankAccount == null) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor:
-                    colorScheme
-                        .primaryContainer,
-                    child: Icon(
-                      Icons
-                          .account_balance_outlined,
-                      color: colorScheme
-                          .onPrimaryContainer,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 12,
-                  ),
-
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Bank Account',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight:
-                            FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(
-                          height: 3,
-                        ),
-                        Text(
-                          'Add your bank details to deposit or withdraw INR.',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 16,
-              ),
-
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed:
-                  _openBankDetails,
-                  icon: const Icon(
-                    Icons.add,
-                  ),
-                  label: const Text(
-                    'Add Bank Details',
-                  ),
-                ),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withValues(alpha: 0.25),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
-        ),
-      );
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-          children: [
-            Row(
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -35,
+            top: -40,
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 40,
+            bottom: -65,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundColor:
-                  colorScheme
-                      .primaryContainer,
-                  child: Icon(
-                    Icons.account_balance,
-                    color: colorScheme
-                        .onPrimaryContainer,
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_wallet_rounded,
+                        color: Colors.white,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Total Wallet Value',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '\$${_totalBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1,
                   ),
                 ),
-
-                const SizedBox(
-                  width: 12,
+                const SizedBox(height: 7),
+                Text(
+                  'USD-valued wallet balance',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 13,
+                  ),
                 ),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                const SizedBox(height: 22),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'INR Bank Transfer',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                          FontWeight.bold,
-                        ),
+                      const Icon(
+                        Icons.shield_outlined,
+                        size: 16,
+                        color: Colors.white,
                       ),
-
-                      const SizedBox(
-                        height: 4,
-                      ),
-
+                      const SizedBox(width: 7),
                       Text(
-                        _bankAccount!.bankName,
+                        'Portfolio protected',
                         style: TextStyle(
-                          color: colorScheme
-                              .onSurfaceVariant,
-                        ),
-                      ),
-
-                      const SizedBox(
-                        height: 3,
-                      ),
-
-                      Text(
-                        'Account •••• ${_bankAccount!.accountNumber.substring(_bankAccount!.accountNumber.length - 4)}',
-                        style: TextStyle(
-                          color: colorScheme
-                              .onSurfaceVariant,
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                IconButton(
-                  tooltip:
-                  'Edit Bank Details',
-                  onPressed:
-                  _openBankDetails,
-                  icon: const Icon(
-                    Icons.edit_outlined,
-                  ),
-                ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(
-              height: 18,
+  Widget _assetCard(Asset asset) {
+    final Color color = _colorFor(asset.symbol);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.035),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Row(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withValues(alpha: 0.18),
+                    color.withValues(alpha: 0.07),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: Icon(
+                _iconFor(asset.symbol),
+                color: color,
+                size: 27,
+              ),
             ),
-
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed:
-                    _openDeposit,
-                    icon: const Icon(
-                      Icons.add_circle_outline,
-                    ),
-                    label: const Text(
-                      'Deposit',
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    asset.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          asset.symbol,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Flexible(
+                        child: Text(
+                          asset.network,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  asset.amount,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
-
-                const SizedBox(
-                  width: 12,
+                const SizedBox(height: 4),
+                Text(
+                  asset.value,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed:
-                    _openWithdraw,
-                    icon: const Icon(
-                      Icons
-                          .account_balance_outlined,
-                    ),
-                    label: const Text(
-                      'Withdraw',
+                const SizedBox(height: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: asset.isPositive
+                        ? Colors.green.withValues(alpha: 0.09)
+                        : Colors.red.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text(
+                    asset.change,
+                    style: TextStyle(
+                      color: asset.isPositive
+                          ? Colors.green.shade700
+                          : Colors.red.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -540,13 +471,321 @@ class _AssetsScreenState extends State<AssetsScreen> {
     );
   }
 
+  Widget _sectionTitle({
+    required String title,
+    required String subtitle,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 13,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bankCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (_bankAccount == null) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_outlined,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Connect Bank Account',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        'Deposit or withdraw INR directly from your wallet.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _openBankDetails,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Bank Details'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.secondary,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.account_balance_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'INR Bank Transfer',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _bankAccount!.bankName,
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _maskedAccountNumber(
+                        _bankAccount!.accountNumber,
+                      ),
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Edit Bank Details',
+                onPressed: _openBankDetails,
+                style: IconButton.styleFrom(
+                  backgroundColor:
+                  colorScheme.surfaceContainerHighest,
+                ),
+                icon: const Icon(Icons.edit_outlined),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Container(
+            height: 1,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _openDeposit,
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                  label: const Text('Deposit'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _openWithdraw,
+                  icon: const Icon(
+                    Icons.account_balance_outlined,
+                  ),
+                  label: const Text('Withdraw'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyAssets() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 40,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 32,
+              color: colorScheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No assets yet',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your wallet assets will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingView() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 34,
+            height: 34,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Loading your assets...',
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openBankDetails() async {
-    final result =
-    await Navigator.push<bool>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const BankDetailsScreen(),
+        builder: (context) => const BankDetailsScreen(),
       ),
     );
 
@@ -561,12 +800,10 @@ class _AssetsScreenState extends State<AssetsScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Bank details saved successfully.',
-          ),
+          content: Text('Bank details saved successfully.'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -576,24 +813,18 @@ class _AssetsScreenState extends State<AssetsScreen> {
     if (_bankAccount == null) {
       await _openBankDetails();
 
-      if (!mounted) {
-        return;
-      }
-
-      if (_bankAccount == null) {
+      if (!mounted || _bankAccount == null) {
         return;
       }
     }
 
-    final result =
-    await Navigator.push<bool>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            INRTransferScreen(
-              isDeposit: true,
-              bankAccount: _bankAccount!,
-            ),
+        builder: (context) => INRTransferScreen(
+          isDeposit: true,
+          bankAccount: _bankAccount!,
+        ),
       ),
     );
 
@@ -608,12 +839,10 @@ class _AssetsScreenState extends State<AssetsScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'INR deposited successfully.',
-          ),
+          content: Text('INR deposited successfully.'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -623,24 +852,18 @@ class _AssetsScreenState extends State<AssetsScreen> {
     if (_bankAccount == null) {
       await _openBankDetails();
 
-      if (!mounted) {
-        return;
-      }
-
-      if (_bankAccount == null) {
+      if (!mounted || _bankAccount == null) {
         return;
       }
     }
 
-    final result =
-    await Navigator.push<bool>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            INRTransferScreen(
-              isDeposit: false,
-              bankAccount: _bankAccount!,
-            ),
+        builder: (context) => INRTransferScreen(
+          isDeposit: false,
+          bankAccount: _bankAccount!,
+        ),
       ),
     );
 
@@ -655,12 +878,10 @@ class _AssetsScreenState extends State<AssetsScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'INR withdrawn successfully.',
-          ),
+          content: Text('INR withdrawn successfully.'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -673,69 +894,51 @@ class _AssetsScreenState extends State<AssetsScreen> {
         title: const Text(
           'Assets',
           style: TextStyle(
-            fontWeight:
-            FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _isLoading ? null : _loadAssets,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          const SizedBox(width: 6),
+        ],
       ),
-
       body: _isLoading
-          ? const Center(
-        child:
-        CircularProgressIndicator(),
-      )
+          ? _loadingView()
           : RefreshIndicator(
         onRefresh: _loadAssets,
         child: ListView(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
-          padding:
-          const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            30,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            18,
+            10,
+            18,
+            32,
           ),
           children: [
+            _buildPageHeader(),
+            const SizedBox(height: 20),
             _totalCard(),
-
-            const SizedBox(
-              height: 20,
+            const SizedBox(height: 28),
+            _sectionTitle(
+              title: 'Bank Transfer',
+              subtitle: 'Manage your INR deposits and withdrawals',
             ),
-
+            const SizedBox(height: 12),
             _bankCard(),
-
-            const SizedBox(
-              height: 24,
+            const SizedBox(height: 28),
+            _sectionTitle(
+              title: 'Your Assets',
+              subtitle: 'Crypto and fiat balances in your wallet',
             ),
-
-            const Text(
-              'Your Assets',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight:
-                FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
+            const SizedBox(height: 12),
             if (_assets.isEmpty)
-              const Padding(
-                padding:
-                EdgeInsets.all(30),
-                child: Center(
-                  child: Text(
-                    'No assets yet',
-                  ),
-                ),
-              ),
-
-            ..._assets.map(
-              _assetCard,
-            ),
+              _emptyAssets()
+            else
+              ..._assets.map(_assetCard),
           ],
         ),
       ),

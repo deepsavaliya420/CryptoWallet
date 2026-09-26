@@ -23,8 +23,7 @@ class HomeScreen extends StatefulWidget {
   });
 
   @override
-  State<HomeScreen> createState() =>
-      _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState
@@ -42,27 +41,23 @@ class _HomeScreenState
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addObserver(
-      this,
-    );
+    WidgetsBinding.instance.addObserver(this);
 
     _loadWalletData();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(
-      this,
-    );
+    WidgetsBinding.instance.removeObserver(this);
 
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(
-      AppLifecycleState state) {
-    if (state ==
-        AppLifecycleState.resumed) {
+      AppLifecycleState state,
+      ) {
+    if (state == AppLifecycleState.resumed) {
       _loadWalletData();
     }
   }
@@ -75,10 +70,8 @@ class _HomeScreenState
       final double walletBalance =
       await WalletService.getTotalBalance();
 
-      final List<WalletTransaction>
-      walletTransactions =
-      await TransactionService
-          .getRecentTransactions(
+      final List<WalletTransaction> walletTransactions =
+      await TransactionService.getRecentTransactions(
         limit: 5,
       );
 
@@ -89,8 +82,7 @@ class _HomeScreenState
       setState(() {
         assets = walletAssets;
         totalBalance = walletBalance;
-        transactions =
-            walletTransactions;
+        transactions = walletTransactions;
         isLoading = false;
       });
     } catch (error) {
@@ -113,8 +105,7 @@ class _HomeScreenState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const AssetsScreen(),
+        builder: (context) => const AssetsScreen(),
       ),
     );
 
@@ -126,12 +117,10 @@ class _HomeScreenState
   }
 
   Future<void> _openSend() async {
-    final bool? result =
-    await Navigator.push<bool>(
+    final bool? result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const SendReceiveScreen(
+        builder: (context) => const SendReceiveScreen(
           mode: TransferMode.send,
         ),
       ),
@@ -148,19 +137,15 @@ class _HomeScreenState
     }
 
     if (result == true) {
-      _showMessage(
-        'Send completed successfully.',
-      );
+      _showMessage('Send completed successfully.');
     }
   }
 
   Future<void> _openReceive() async {
-    final bool? result =
-    await Navigator.push<bool>(
+    final bool? result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const SendReceiveScreen(
+        builder: (context) => const SendReceiveScreen(
           mode: TransferMode.receive,
         ),
       ),
@@ -177,19 +162,15 @@ class _HomeScreenState
     }
 
     if (result == true) {
-      _showMessage(
-        'Receive completed successfully.',
-      );
+      _showMessage('Receive completed successfully.');
     }
   }
 
   Future<void> _openSwap() async {
-    final bool? result =
-    await Navigator.push<bool>(
+    final bool? result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const SwapScreen(),
+        builder: (context) => const SwapScreen(),
       ),
     );
 
@@ -204,9 +185,7 @@ class _HomeScreenState
     }
 
     if (result == true) {
-      _showMessage(
-        'Swap completed successfully.',
-      );
+      _showMessage('Swap completed successfully.');
     }
   }
 
@@ -214,8 +193,7 @@ class _HomeScreenState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const SwapHistoryScreen(),
+        builder: (context) => const SwapHistoryScreen(),
       ),
     );
 
@@ -230,8 +208,7 @@ class _HomeScreenState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const P2PScreen(),
+        builder: (context) => const P2PScreen(),
       ),
     );
 
@@ -246,8 +223,7 @@ class _HomeScreenState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const ProfileScreen(),
+        builder: (context) => const ProfileScreen(),
       ),
     );
 
@@ -262,8 +238,7 @@ class _HomeScreenState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const NotificationsScreen(),
+        builder: (context) => const NotificationsScreen(),
       ),
     );
   }
@@ -276,53 +251,47 @@ class _HomeScreenState
       return;
     }
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
         ),
-        backgroundColor:
-        isError ? Colors.red : null,
-        behavior:
-        SnackBarBehavior.floating,
-        duration:
-        const Duration(
-          seconds: 2,
-        ),
+        backgroundColor: isError ? Colors.red.shade700 : null,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  String _cleanError(
-      Object error) {
+  String _cleanError(Object error) {
     return error
         .toString()
-        .replaceFirst(
-      'Exception: ',
-      '',
-    )
-        .replaceFirst(
-      'Bad state: ',
-      '',
-    );
+        .replaceFirst('Exception: ', '')
+        .replaceFirst('Bad state: ', '');
   }
 
-  String _formatBalance(
-      double balance) {
+  String _formatBalance(double balance) {
     return '\$${balance.toStringAsFixed(2)}';
   }
 
-  String _formatTransactionTime(
-      DateTime timestamp) {
-    final DateTime now =
-    DateTime.now();
+  String _formatTransactionTime(DateTime timestamp) {
+    final DateTime now = DateTime.now();
 
-    final Duration difference =
-    now.difference(timestamp);
+    final Duration difference = now.difference(timestamp);
 
     if (difference.inMinutes < 1) {
       return 'Just now';
@@ -333,47 +302,301 @@ class _HomeScreenState
     }
 
     if (difference.inDays < 1) {
-      return 'Today, '
-          '${_formatTime(timestamp)}';
+      return 'Today, ${_formatTime(timestamp)}';
     }
 
     if (difference.inDays == 1) {
-      return 'Yesterday, '
-          '${_formatTime(timestamp)}';
+      return 'Yesterday, ${_formatTime(timestamp)}';
     }
 
-    return '${timestamp.day}/'
-        '${timestamp.month}/'
-        '${timestamp.year}';
+    return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
   }
 
-  String _formatTime(
-      DateTime dateTime) {
-    final int hour =
-    dateTime.hour % 12 == 0
+  String _formatTime(DateTime dateTime) {
+    final int hour = dateTime.hour % 12 == 0
         ? 12
         : dateTime.hour % 12;
 
-    final String minute =
-    dateTime.minute
+    final String minute = dateTime.minute
         .toString()
-        .padLeft(
-      2,
-      '0',
-    );
+        .padLeft(2, '0');
 
     final String period =
-    dateTime.hour >= 12
-        ? 'PM'
-        : 'AM';
+    dateTime.hour >= 12 ? 'PM' : 'AM';
 
     return '$hour:$minute $period';
   }
 
+  Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome back 👋',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Your Wallet',
+                style: TextStyle(
+                  fontSize: 27,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.7,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _headerButton(
+          context,
+          icon: Icons.notifications_none_rounded,
+          onTap: _openNotifications,
+        ),
+        const SizedBox(width: 9),
+        _headerButton(
+          context,
+          icon: Icons.person_outline_rounded,
+          onTap: _openProfile,
+        ),
+      ],
+    );
+  }
+
+  Widget _headerButton(
+      BuildContext context, {
+        required IconData icon,
+        required VoidCallback onTap,
+      }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.7,
+      ),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(
+            icon,
+            size: 21,
+            color: colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBalanceSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.primary.withValues(alpha: 0.84),
+            colorScheme.secondary,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          WalletBalanceCard(
+            balance: _formatBalance(totalBalance),
+            change: '+4.82% today',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: ActionCard(
+            icon: Icons.arrow_upward_rounded,
+            title: 'Send',
+            onTap: _openSend,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ActionCard(
+            icon: Icons.arrow_downward_rounded,
+            title: 'Receive',
+            onTap: _openReceive,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ActionCard(
+            icon: Icons.swap_horiz_rounded,
+            title: 'Swap',
+            onTap: _openSwap,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAssetsSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        SectionTitle(
+          title: 'Your Assets',
+          actionText: 'View All',
+          onAction: _openAssets,
+        ),
+        const SizedBox(height: 11),
+        if (assets.isEmpty)
+          _emptyCard(
+            context,
+            icon: Icons.account_balance_wallet_outlined,
+            title: 'No assets yet',
+            message:
+            'Your wallet assets will appear here.',
+          ),
+        ...assets.take(4).map(
+              (Asset asset) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: AssetCard(
+                asset: asset,
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTransactionsSection(BuildContext context) {
+    return Column(
+      children: [
+        SectionTitle(
+          title: 'Recent Transactions',
+          actionText: 'View All',
+          onAction: _openSwapHistory,
+        ),
+        const SizedBox(height: 11),
+        if (transactions.isEmpty)
+          _emptyCard(
+            context,
+            icon: Icons.receipt_long_outlined,
+            title: 'No transactions yet',
+            message:
+            'Your latest wallet activity will appear here.',
+          ),
+        ...transactions.map(
+              (WalletTransaction transaction) {
+            return _transactionCard(transaction);
+          },
+        ),
+        if (transactions.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _openSwapHistory,
+                icon: const Icon(
+                  Icons.history_rounded,
+                  size: 19,
+                ),
+                label: const Text('View Transaction History'),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _emptyCard(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required String message,
+      }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(
+        vertical: 25,
+        horizontal: 18,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: 0.35,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 34,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 9),
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _transactionCard(
-      WalletTransaction transaction) {
-    final String type =
-    transaction.type.toLowerCase();
+      WalletTransaction transaction,
+      ) {
+    final String type = transaction.type.toLowerCase();
 
     final bool isReceive =
         type == 'received' ||
@@ -390,46 +613,34 @@ class _HomeScreenState
         type == 'swap';
 
     final Color color;
-
     final IconData icon;
 
     if (isSwap) {
-      color = Theme.of(context)
-          .colorScheme
-          .primary;
-
-      icon = Icons.swap_horiz;
-    } else if (isReceive ||
-        isDeposit) {
+      color = Theme.of(context).colorScheme.primary;
+      icon = Icons.swap_horiz_rounded;
+    } else if (isReceive || isDeposit) {
       color = Colors.green;
-
       icon = isDeposit
-          ? Icons
-          .account_balance_wallet_outlined
-          : Icons.arrow_downward;
+          ? Icons.account_balance_wallet_outlined
+          : Icons.arrow_downward_rounded;
     } else {
       color = Colors.red;
-
       icon = isWithdrawal
-          ? Icons
-          .account_balance_outlined
-          : Icons.arrow_upward;
+          ? Icons.account_balance_outlined
+          : Icons.arrow_upward_rounded;
     }
 
     String amountText;
 
     if (isSwap) {
       amountText =
-      '${transaction.amount.toStringAsFixed(2)} '
-          '${transaction.asset}';
+      '${transaction.amount.toStringAsFixed(2)} ${transaction.asset}';
     } else if (isDeposit) {
       amountText =
-      '+${transaction.amount.toStringAsFixed(2)} '
-          '${transaction.asset}';
+      '+${transaction.amount.toStringAsFixed(2)} ${transaction.asset}';
     } else if (isWithdrawal) {
       amountText =
-      '-${transaction.amount.toStringAsFixed(2)} '
-          '${transaction.asset}';
+      '-${transaction.amount.toStringAsFixed(2)} ${transaction.asset}';
     } else {
       amountText =
       '${isReceive ? '+' : '-'}'
@@ -437,376 +648,148 @@ class _HomeScreenState
           '${transaction.asset}';
     }
 
-    return Card(
-      margin:
-      const EdgeInsets.only(
-        bottom: 10,
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: 0.38,
+          ),
+        ),
       ),
-      child: Padding(
-        padding:
-        const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor:
-              color.withValues(
-                alpha: 0.14,
-              ),
-              child: Icon(
-                icon,
-                color: color,
-              ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(14),
             ),
-
-            const SizedBox(
-              width: 14,
+            child: Icon(
+              icon,
+              color: color,
+              size: 22,
             ),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-                children: [
-                  Text(
-                    transaction.type,
-                    style:
-                    const TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction.type,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: colorScheme.onSurface,
                   ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    '${transaction.asset} • '
-                        '${transaction.network}',
-                    style: TextStyle(
-                      color:
-                      Theme.of(
-                        context,
-                      )
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 3,
-                  ),
-
-                  Text(
-                    _formatTransactionTime(
-                      transaction.timestamp,
-                    ),
-                    style: TextStyle(
-                      color:
-                      Theme.of(
-                        context,
-                      )
-                          .colorScheme
-                          .onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(
-              width: 8,
-            ),
-
-            Flexible(
-              child: Text(
-                amountText,
-                textAlign:
-                TextAlign.end,
-                style: TextStyle(
-                  fontWeight:
-                  FontWeight.bold,
-                  color: color,
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(
-      BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'ChainVault',
-          style: TextStyle(
-            fontWeight:
-            FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip:
-            'Notifications',
-            onPressed:
-            _openNotifications,
-            icon: const Icon(
-              Icons
-                  .notifications_outlined,
+                const SizedBox(height: 4),
+                Text(
+                  '${transaction.asset} • ${transaction.network}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _formatTransactionTime(
+                    transaction.timestamp,
+                  ),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
-
-          Padding(
-            padding:
-            const EdgeInsets.only(
-              right: 8,
-            ),
-            child: IconButton(
-              tooltip: 'Profile',
-              onPressed:
-              _openProfile,
-              icon: const Icon(
-                Icons
-                    .account_circle_outlined,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              amountText,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+                color: color,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
       body: isLoading
-          ? const Center(
-        child:
-        CircularProgressIndicator(),
+          ? Center(
+        child: CircularProgressIndicator(
+          color: colorScheme.primary,
+        ),
       )
           : SafeArea(
-        child:
-        RefreshIndicator(
-          onRefresh:
-          _loadWalletData,
+        child: RefreshIndicator(
+          onRefresh: _loadWalletData,
           child: ListView(
             physics:
             const AlwaysScrollableScrollPhysics(),
-            padding:
-            const EdgeInsets.fromLTRB(
-              16,
-              10,
-              16,
-              24,
+            padding: const EdgeInsets.fromLTRB(
+              18,
+              12,
+              18,
+              28,
             ),
             children: [
-              const Text(
-                'Welcome back 👋',
-                style:
-                TextStyle(
-                  fontSize: 16,
-                ),
-              ),
+              _buildHeader(context),
 
-              const SizedBox(
-                height: 4,
-              ),
+              const SizedBox(height: 24),
 
-              Text(
-                'Your Wallet',
-                style:
-                Theme.of(
-                  context,
-                )
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(
-                  fontWeight:
-                  FontWeight.bold,
-                ),
-              ),
+              _buildBalanceSection(context),
 
-              const SizedBox(
-                height: 18,
-              ),
-
-              WalletBalanceCard(
-                balance:
-                _formatBalance(
-                  totalBalance,
-                ),
-                change:
-                '+4.82% today',
-              ),
-
-              const SizedBox(
-                height: 24,
-              ),
-
-              const SectionTitle(
-                title:
-                'Quick Actions',
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              Row(
-                children: [
-                  Expanded(
-                    child:
-                    ActionCard(
-                      icon: Icons
-                          .arrow_upward,
-                      title: 'Send',
-                      onTap:
-                      _openSend,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 10,
-                  ),
-
-                  Expanded(
-                    child:
-                    ActionCard(
-                      icon: Icons
-                          .arrow_downward,
-                      title:
-                      'Receive',
-                      onTap:
-                      _openReceive,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 10,
-                  ),
-
-                  Expanded(
-                    child:
-                    ActionCard(
-                      icon: Icons
-                          .swap_horiz,
-                      title: 'Swap',
-                      onTap:
-                      _openSwap,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 26,
-              ),
+              const SizedBox(height: 28),
 
               SectionTitle(
-                title:
-                'Your Assets',
-                actionText:
-                'View All',
-                onAction:
-                _openAssets,
+                title: 'Quick Actions',
               ),
 
-              const SizedBox(
-                height: 10,
-              ),
+              const SizedBox(height: 12),
 
-              if (assets.isEmpty)
-                const Padding(
-                  padding:
-                  EdgeInsets.all(
-                    20,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'No assets yet',
-                    ),
-                  ),
-                ),
+              _buildQuickActions(context),
 
-              ...assets.map(
-                    (
-                    Asset asset,
-                    ) {
-                  return AssetCard(
-                    asset: asset,
-                  );
-                },
-              ),
+              const SizedBox(height: 30),
 
-              const SizedBox(
-                height: 24,
-              ),
+              _buildAssetsSection(context),
 
-              SectionTitle(
-                title:
-                'Recent Transactions',
-                actionText:
-                'View All',
-                onAction:
-                _openSwapHistory,
-              ),
+              const SizedBox(height: 28),
 
-              const SizedBox(
-                height: 10,
-              ),
+              _buildTransactionsSection(context),
 
-              if (transactions.isEmpty)
-                const Padding(
-                  padding:
-                  EdgeInsets.all(
-                    20,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'No transactions yet',
-                    ),
-                  ),
-                ),
-
-              ...transactions.map(
-                    (
-                    WalletTransaction
-                    transaction,
-                    ) {
-                  return _transactionCard(
-                    transaction,
-                  );
-                },
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              OutlinedButton.icon(
-                onPressed:
-                _openSwapHistory,
-                icon: const Icon(
-                  Icons.swap_horiz,
-                ),
-                label:
-                const Text(
-                  'Swap History',
-                ),
-              ),
+              const SizedBox(height: 10),
             ],
           ),
         ),
       ),
-
-      bottomNavigationBar:
-      NavigationBar(
+      bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
-
-        onDestinationSelected:
-            (int index) {
+        onDestinationSelected: (int index) {
           switch (index) {
             case 0:
               break;
@@ -824,46 +807,40 @@ class _HomeScreenState
               break;
           }
         },
-
         destinations: const [
           NavigationDestination(
             icon: Icon(
               Icons.home_outlined,
             ),
             selectedIcon: Icon(
-              Icons.home,
+              Icons.home_rounded,
             ),
             label: 'Home',
           ),
-
           NavigationDestination(
             icon: Icon(
-              Icons
-                  .account_balance_wallet_outlined,
+              Icons.account_balance_wallet_outlined,
             ),
             selectedIcon: Icon(
-              Icons
-                  .account_balance_wallet,
+              Icons.account_balance_wallet_rounded,
             ),
             label: 'Assets',
           ),
-
           NavigationDestination(
             icon: Icon(
               Icons.handshake_outlined,
             ),
             selectedIcon: Icon(
-              Icons.handshake,
+              Icons.handshake_rounded,
             ),
             label: 'P2P',
           ),
-
           NavigationDestination(
             icon: Icon(
-              Icons.person_outline,
+              Icons.person_outline_rounded,
             ),
             selectedIcon: Icon(
-              Icons.person,
+              Icons.person_rounded,
             ),
             label: 'Profile',
           ),

@@ -31,12 +31,14 @@ class _SwapHistoryScreenState
 
   Future<void> _loadSwaps() async {
     try {
-      final swaps = await SwapService.getSwaps();
+      final swaps =
+      await SwapService.getSwaps();
 
       if (!mounted) return;
 
       setState(() {
-        _swaps = List<SwapTransaction>.from(swaps);
+        _swaps =
+        List<SwapTransaction>.from(swaps);
         _isLoading = false;
       });
     } catch (error) {
@@ -62,38 +64,8 @@ class _SwapHistoryScreenState
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text(
-            'Clear Swap History?',
-          ),
-          content: const Text(
-            'This removes saved swap history from this device. '
-                'Your wallet balances will not be changed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text(
-                'Cancel',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text(
-                'Clear',
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    final confirmed =
+    await _showClearConfirmation();
 
     if (confirmed != true) {
       return;
@@ -122,6 +94,76 @@ class _SwapHistoryScreenState
   }
 
   // ============================================================
+  // CLEAR CONFIRMATION
+  // ============================================================
+
+  Future<bool?> _showClearConfirmation() {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final colorScheme =
+            Theme.of(dialogContext).colorScheme;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(23),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.delete_sweep_outlined,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Clear Swap History?',
+                  style: TextStyle(
+                    fontWeight:
+                    FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'This removes the saved swap history. '
+                'Your wallet balances will not be changed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(
+                  dialogContext,
+                ).pop(false);
+              },
+              child: const Text(
+                'Cancel',
+              ),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                colorScheme.error,
+                foregroundColor:
+                colorScheme.onError,
+              ),
+              onPressed: () {
+                Navigator.of(
+                  dialogContext,
+                ).pop(true);
+              },
+              child: const Text(
+                'Clear History',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ============================================================
   // DETAILS
   // ============================================================
 
@@ -132,12 +174,17 @@ class _SwapHistoryScreenState
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
+      backgroundColor:
+      Theme.of(context).colorScheme.surface,
       builder: (sheetContext) {
+        final colorScheme =
+            Theme.of(sheetContext).colorScheme;
+
         return SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               20,
-              10,
+              5,
               20,
               30,
             ),
@@ -145,82 +192,142 @@ class _SwapHistoryScreenState
               crossAxisAlignment:
               CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Swap Details',
-                  style: Theme.of(sheetContext)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: colorScheme
+                            .primaryContainer,
+                        borderRadius:
+                        BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        Icons.swap_horiz_rounded,
+                        color: colorScheme
+                            .onPrimaryContainer,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Swap Details',
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight:
+                              FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Complete transaction information',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
 
-                const SizedBox(
-                  height: 20,
+                const SizedBox(height: 20),
+
+                _buildDetailSection(
+                  sheetContext,
+                  children: [
+                    _detailRow(
+                      sheetContext,
+                      'Status',
+                      swap.status.toUpperCase(),
+                      valueColor:
+                      _statusColor(
+                        sheetContext,
+                        swap.status,
+                      ),
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'From',
+                      '${_formatNumber(swap.fromAmount)} '
+                          '${swap.fromCurrency}',
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'From Network',
+                      swap.fromNetwork.isEmpty
+                          ? 'Not specified'
+                          : swap.fromNetwork,
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'To',
+                      '${_formatNumber(swap.toAmount)} '
+                          '${swap.toCurrency}',
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'To Network',
+                      swap.toNetwork.isEmpty
+                          ? 'Not specified'
+                          : swap.toNetwork,
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'Exchange Rate',
+                      '1 ${swap.fromCurrency} = '
+                          '${_formatNumber(swap.exchangeRate)} '
+                          '${swap.toCurrency}',
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'Fee',
+                      '${_formatNumber(swap.fee)} '
+                          '${swap.fromCurrency}',
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'Date',
+                      _formatDateTime(
+                        swap.timestamp,
+                      ),
+                    ),
+                    _detailRow(
+                      sheetContext,
+                      'Transaction ID',
+                      swap.id,
+                      isLast: true,
+                    ),
+                  ],
                 ),
 
-                _detailRow(
-                  'Status',
-                  swap.status.toUpperCase(),
-                ),
-
-                _detailRow(
-                  'From',
-                  '${_formatNumber(swap.fromAmount)} '
-                      '${swap.fromCurrency}',
-                ),
-
-                _detailRow(
-                  'From Network',
-                  swap.fromNetwork,
-                ),
-
-                _detailRow(
-                  'To',
-                  '${_formatNumber(swap.toAmount)} '
-                      '${swap.toCurrency}',
-                ),
-
-                _detailRow(
-                  'To Network',
-                  swap.toNetwork,
-                ),
-
-                _detailRow(
-                  'Exchange Rate',
-                  '1 ${swap.fromCurrency} = '
-                      '${_formatNumber(swap.exchangeRate)} '
-                      '${swap.toCurrency}',
-                ),
-
-                _detailRow(
-                  'Fee',
-                  '${_formatNumber(swap.fee)} '
-                      '${swap.fromCurrency}',
-                ),
-
-                _detailRow(
-                  'Date',
-                  _formatDateTime(
-                    swap.timestamp,
-                  ),
-                ),
-
-                _detailRow(
-                  'Transaction ID',
-                  swap.id,
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
+                const SizedBox(height: 18),
 
                 SizedBox(
                   width: double.infinity,
+                  height: 50,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.of(sheetContext).pop();
+                      Navigator.of(
+                        sheetContext,
+                      ).pop();
                     },
+                    style:
+                    OutlinedButton.styleFrom(
+                      shape:
+                      RoundedRectangleBorder(
+                        borderRadius:
+                        BorderRadius.circular(
+                          15,
+                        ),
+                      ),
+                    ),
                     child: const Text(
                       'Close',
                     ),
@@ -235,41 +342,92 @@ class _SwapHistoryScreenState
   }
 
   // ============================================================
+  // DETAIL SECTION
+  // ============================================================
+
+  Widget _buildDetailSection(
+      BuildContext context, {
+        required List<Widget> children,
+      }) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 15,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(19),
+        border: Border.all(
+          color: colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  // ============================================================
   // DETAIL ROW
   // ============================================================
 
   Widget _detailRow(
+      BuildContext context,
       String title,
-      String value,
-      ) {
-    return Padding(
+      String value, {
+        Color? valueColor,
+        bool isLast = false,
+      }) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
       padding: const EdgeInsets.symmetric(
-        vertical: 8,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(
+          bottom: BorderSide(
+            color: colorScheme
+                .outlineVariant
+                .withValues(alpha: 0.35),
+          ),
+        ),
       ),
       child: Row(
         crossAxisAlignment:
         CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 125,
+          Expanded(
+            flex: 2,
             child: Text(
               title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
+              style: TextStyle(
+                fontSize: 11,
+                color: colorScheme
+                    .onSurfaceVariant,
               ),
             ),
           ),
-
-          const SizedBox(
-            width: 12,
-          ),
-
+          const SizedBox(width: 12),
           Expanded(
+            flex: 3,
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight:
+                FontWeight.w700,
+                color: valueColor,
               ),
             ),
           ),
@@ -288,186 +446,250 @@ class _SwapHistoryScreenState
     final colorScheme =
         Theme.of(context).colorScheme;
 
-    final bool completed =
-        swap.status.toLowerCase() ==
-            'completed';
+    final statusColor =
+    _statusColor(
+      context,
+      swap.status,
+    );
 
-    final Color statusColor =
-    completed
-        ? Colors.green
-        : colorScheme.primary;
-
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(
-        bottom: 12,
+        bottom: 13,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          _showSwapDetails(swap);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(
-            16,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(21),
+        border: Border.all(
+          color: colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow
+                .withValues(alpha: 0.035),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor:
-                    colorScheme
-                        .primaryContainer,
-                    child: Icon(
-                      Icons.swap_horiz_rounded,
-                      color: colorScheme
-                          .onPrimaryContainer,
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius:
+          BorderRadius.circular(21),
+          onTap: () {
+            _showSwapDetails(swap);
+          },
+          child: Padding(
+            padding:
+            const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 49,
+                      height: 49,
+                      decoration: BoxDecoration(
+                        color: colorScheme
+                            .primaryContainer,
+                        borderRadius:
+                        BorderRadius.circular(
+                          14,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons
+                            .swap_horiz_rounded,
+                        color: colorScheme
+                            .onPrimaryContainer,
+                        size: 25,
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Asset Swap',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight:
+                              FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 4,
+                          ),
+                          Text(
+                            '${swap.fromCurrency} → '
+                                '${swap.toCurrency}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    Container(
+                      padding:
+                      const EdgeInsets
+                          .symmetric(
+                        horizontal: 9,
+                        vertical: 6,
+                      ),
+                      decoration:
+                      BoxDecoration(
+                        borderRadius:
+                        BorderRadius.circular(
+                          10,
+                        ),
+                        color: statusColor
+                            .withValues(
+                          alpha: 0.10,
+                        ),
+                      ),
+                      child: Text(
+                        swap.status
+                            .toUpperCase(),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight:
+                          FontWeight.w800,
+                          fontSize: 9.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 17),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _amountBox(
+                        label: 'Sent',
+                        amount:
+                        _formatNumber(
+                          swap.fromAmount,
+                        ),
+                        currency:
+                        swap.fromCurrency,
+                      ),
+                    ),
+
+                    Container(
+                      width: 31,
+                      height: 31,
+                      margin:
+                      const EdgeInsets
+                          .symmetric(
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme
+                            .primaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons
+                            .arrow_forward_rounded,
+                        size: 16,
+                        color: colorScheme
+                            .onPrimaryContainer,
+                      ),
+                    ),
+
+                    Expanded(
+                      child: _amountBox(
+                        label: 'Received',
+                        amount:
+                        _formatNumber(
+                          swap.toAmount,
+                        ),
+                        currency:
+                        swap.toCurrency,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 14),
+
+                Container(
+                  padding:
+                  const EdgeInsets
+                      .symmetric(
+                    horizontal: 11,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme
+                        .surfaceContainerLow,
+                    borderRadius:
+                    BorderRadius.circular(
+                      12,
                     ),
                   ),
-
-                  const SizedBox(
-                    width: 12,
-                  ),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Swap',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.lan_outlined,
+                        size: 16,
+                        color: colorScheme
+                            .primary,
+                      ),
+                      const SizedBox(
+                        width: 6,
+                      ),
+                      Expanded(
+                        child: Text(
+                          _networkText(swap),
                           style: TextStyle(
-                            fontWeight:
-                            FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 4,
-                        ),
-
-                        Text(
-                          '${swap.fromCurrency} → '
-                              '${swap.toCurrency}',
-                          style: TextStyle(
+                            fontSize: 10.5,
                             color: colorScheme
                                 .onSurfaceVariant,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-
-                  Container(
-                    padding:
-                    const EdgeInsets
-                        .symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration:
-                    BoxDecoration(
-                      borderRadius:
-                      BorderRadius.circular(
-                        20,
                       ),
-                      color: statusColor
-                          .withValues(
-                        alpha: 0.12,
+                      const SizedBox(
+                        width: 8,
                       ),
-                    ),
-                    child: Text(
-                      swap.status,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight:
-                        FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 16,
-              ),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _amountBox(
-                      label: 'Sent',
-                      amount:
-                      _formatNumber(
-                        swap.fromAmount,
-                      ),
-                      currency:
-                      swap.fromCurrency,
-                    ),
-                  ),
-
-                  const Padding(
-                    padding:
-                    EdgeInsets.symmetric(
-                      horizontal: 8,
-                    ),
-                    child: Icon(
-                      Icons.arrow_forward,
-                      size: 20,
-                    ),
-                  ),
-
-                  Expanded(
-                    child: _amountBox(
-                      label: 'Received',
-                      amount:
-                      _formatNumber(
-                        swap.toAmount,
-                      ),
-                      currency:
-                      swap.toCurrency,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${swap.fromNetwork} → '
-                          '${swap.toNetwork}',
-                      style: TextStyle(
-                        fontSize: 12,
+                      Icon(
+                        Icons
+                            .schedule_outlined,
+                        size: 15,
                         color: colorScheme
                             .onSurfaceVariant,
                       ),
-                    ),
+                      const SizedBox(
+                        width: 5,
+                      ),
+                      Text(
+                        _formatDateTime(
+                          swap.timestamp,
+                        ),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: colorScheme
+                              .onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(
-                    width: 10,
-                  ),
-
-                  Text(
-                    _formatDateTime(
-                      swap.timestamp,
-                    ),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme
-                          .onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -488,14 +710,13 @@ class _SwapHistoryScreenState
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        12,
-      ),
+      padding:
+      const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius:
-        BorderRadius.circular(10),
+        BorderRadius.circular(14),
         color: colorScheme
-            .surfaceContainerHighest,
+            .surfaceContainerLow,
       ),
       child: Column(
         crossAxisAlignment:
@@ -504,38 +725,143 @@ class _SwapHistoryScreenState
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 9.5,
               color: colorScheme
                   .onSurfaceVariant,
             ),
           ),
-
-          const SizedBox(
-            height: 5,
-          ),
-
+          const SizedBox(height: 5),
           Text(
             amount,
             maxLines: 1,
             overflow:
             TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight:
-              FontWeight.bold,
+              FontWeight.w800,
             ),
           ),
-
-          const SizedBox(
-            height: 2,
-          ),
-
+          const SizedBox(height: 2),
           Text(
             currency,
-            style: const TextStyle(
-              fontSize: 12,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight:
+              FontWeight.w600,
+              color: colorScheme
+                  .onSurfaceVariant,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
+
+  Widget _buildHeader(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      margin:
+      const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        borderRadius:
+        BorderRadius.circular(23),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary
+                .withValues(alpha: 0.18),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 57,
+            height: 57,
+            decoration: BoxDecoration(
+              color: Colors.white
+                  .withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.swap_horizontal_circle_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Swap History',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight:
+                    FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_swaps.length} '
+                      '${_swaps.length == 1 ? 'swap' : 'swaps'} recorded',
+                  style: TextStyle(
+                    color: Colors.white
+                        .withValues(alpha: 0.78),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (_swaps.isNotEmpty)
+            Container(
+              padding:
+              const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 7,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white
+                    .withValues(alpha: 0.15),
+                borderRadius:
+                BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_swaps.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight:
+                  FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -549,70 +875,126 @@ class _SwapHistoryScreenState
     final colorScheme =
         Theme.of(context).colorScheme;
 
-    return Center(
-      child: Padding(
-        padding:
-        const EdgeInsets.symmetric(
-          horizontal: 30,
-          vertical: 80,
-        ),
-        child: Column(
-          children: [
-            Icon(
-              Icons.swap_horizontal_circle_outlined,
-              size: 70,
-              color: colorScheme
-                  .onSurfaceVariant,
-            ),
-
-            const SizedBox(
-              height: 18,
-            ),
-
-            Text(
-              'No swaps yet',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
-                fontWeight:
-                FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            Text(
-              'Your completed currency exchanges '
-                  'will appear here.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colorScheme
-                    .onSurfaceVariant,
-              ),
-            ),
-
-            const SizedBox(
-              height: 24,
-            ),
-
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              icon: const Icon(
-                Icons.swap_horiz,
-              ),
-              label: const Text(
-                'Start a Swap',
-              ),
-            ),
-          ],
-        ),
+    return ListView(
+      physics:
+      const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 25,
       ),
+      children: [
+        const SizedBox(height: 75),
+
+        Container(
+          width: 92,
+          height: 92,
+          margin:
+          const EdgeInsets.symmetric(
+            horizontal: 100,
+          ),
+          decoration: BoxDecoration(
+            color:
+            colorScheme.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons
+                .swap_horizontal_circle_outlined,
+            size: 45,
+            color: colorScheme.primary,
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        const Center(
+          child: Text(
+            'No Swaps Yet',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight:
+              FontWeight.w800,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 7),
+
+        Text(
+          'Your currency exchange history '
+              'will appear here after you complete a swap.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 11.5,
+            height: 1.45,
+            color: colorScheme
+                .onSurfaceVariant,
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        Center(
+          child: FilledButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            icon: const Icon(
+              Icons.swap_horiz_rounded,
+            ),
+            label: const Text(
+              'Start a Swap',
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  // ============================================================
+  // STATUS COLOR
+  // ============================================================
+
+  Color _statusColor(
+      BuildContext context,
+      String status,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green;
+
+      case 'failed':
+        return colorScheme.error;
+
+      case 'pending':
+      case 'processing':
+        return Colors.orange;
+
+      default:
+        return colorScheme.primary;
+    }
+  }
+
+  // ============================================================
+  // NETWORK TEXT
+  // ============================================================
+
+  String _networkText(
+      SwapTransaction swap,
+      ) {
+    final fromNetwork =
+    swap.fromNetwork.isEmpty
+        ? 'Network'
+        : swap.fromNetwork;
+
+    final toNetwork =
+    swap.toNetwork.isEmpty
+        ? 'Network'
+        : swap.toNetwork;
+
+    return '$fromNetwork → $toNetwork';
   }
 
   // ============================================================
@@ -705,15 +1087,34 @@ class _SwapHistoryScreenState
       }) {
     if (!mounted) return;
 
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
     ScaffoldMessenger.of(context)
         .hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
+        ),
         backgroundColor:
-        isError ? Colors.red : null,
+        isError
+            ? colorScheme.error
+            : null,
         behavior:
         SnackBarBehavior.floating,
       ),
@@ -732,6 +1133,10 @@ class _SwapHistoryScreenState
       appBar: AppBar(
         title: const Text(
           'Swap History',
+          style: TextStyle(
+            fontWeight:
+            FontWeight.w800,
+          ),
         ),
         actions: [
           if (_swaps.isNotEmpty)
@@ -739,7 +1144,7 @@ class _SwapHistoryScreenState
               tooltip: 'Clear history',
               onPressed: _clearHistory,
               icon: const Icon(
-                Icons.delete_outline,
+                Icons.delete_outline_rounded,
               ),
             ),
         ],
@@ -752,29 +1157,29 @@ class _SwapHistoryScreenState
           : RefreshIndicator(
         onRefresh: _loadSwaps,
         child: _swaps.isEmpty
-            ? ListView(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
-          children: [
-            _emptyState(),
-          ],
-        )
+            ? _emptyState()
             : ListView.builder(
           physics:
           const AlwaysScrollableScrollPhysics(),
           padding:
           const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            24,
+            18,
+            8,
+            18,
+            30,
           ),
           itemCount:
-          _swaps.length,
+          _swaps.length + 1,
           itemBuilder:
               (context, index) {
+            if (index == 0) {
+              return _buildHeader(
+                context,
+              );
+            }
+
             return _swapCard(
-              _swaps[index],
+              _swaps[index - 1],
             );
           },
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -7,7 +8,9 @@ void main() {
 }
 
 class ChainVaultApp extends StatelessWidget {
-  const ChainVaultApp({super.key});
+  const ChainVaultApp({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

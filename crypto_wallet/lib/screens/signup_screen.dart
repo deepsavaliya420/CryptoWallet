@@ -1,25 +1,43 @@
 import 'package:flutter/material.dart';
+
+import '../services/auth_service.dart';
 import 'home_screen.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+  const SignupScreen({
+    super.key,
+  });
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  State<SignupScreen> createState() =>
+      _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _SignupScreenState
+    extends State<SignupScreen> {
+  final GlobalKey<FormState> _formKey =
+  GlobalKey<FormState>();
 
-  final nameController = TextEditingController();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
-  final locationController = TextEditingController();
+  final TextEditingController nameController =
+  TextEditingController();
+
+  final TextEditingController emailController =
+  TextEditingController();
+
+  final TextEditingController passwordController =
+  TextEditingController();
+
+  final TextEditingController
+  confirmPasswordController =
+  TextEditingController();
+
+  final TextEditingController locationController =
+  TextEditingController();
 
   bool hidePassword = true;
   bool hideConfirmPassword = true;
   bool agreeTerms = false;
+  bool isCreatingAccount = false;
 
   @override
   void dispose() {
@@ -31,373 +49,902 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void createAccount() {
+  Future<void> createAccount() async {
+    FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     if (!agreeTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please accept the terms and conditions.',
-          ),
-        ),
+      _showMessage(
+        'Please accept the terms and conditions.',
+        isError: true,
       );
       return;
     }
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HomeScreen(),
+    setState(() {
+      isCreatingAccount = true;
+    });
+
+    try {
+      final success = await AuthService.signup(
+        fullName: nameController.text.trim(),
+        email: emailController.text.trim(),
+        password: passwordController.text,
+        location: locationController.text.trim(),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!success) {
+        _showMessage(
+          'Unable to create your account.',
+          isError: true,
+        );
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomeScreen(),
+        ),
+            (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        _cleanError(error),
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isCreatingAccount = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(
+      String message, {
+        bool isError = false,
+      }) {
+    if (!mounted) {
+      return;
+    }
+
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(message),
+            ),
+          ],
+        ),
+        backgroundColor:
+        isError ? colorScheme.error : null,
+        behavior: SnackBarBehavior.floating,
       ),
-          (route) => false,
     );
   }
 
+  String _cleanError(
+      Object error,
+      ) {
+    return error
+        .toString()
+        .replaceFirst(
+      'Bad state: ',
+      '',
+    )
+        .replaceFirst(
+      'Exception: ',
+      '',
+    );
+  }
+
+  String? _validateName(
+      String? value,
+      ) {
+    if (value == null ||
+        value.trim().isEmpty) {
+      return 'Please enter your full name';
+    }
+
+    if (value.trim().length < 3) {
+      return 'Name must contain at least 3 characters';
+    }
+
+    return null;
+  }
+
+  String? _validateEmail(
+      String? value,
+      ) {
+    if (value == null ||
+        value.trim().isEmpty) {
+      return 'Please enter your email';
+    }
+
+    final emailRegex = RegExp(
+      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+    );
+
+    if (!emailRegex.hasMatch(
+      value.trim(),
+    )) {
+      return 'Enter a valid email address';
+    }
+
+    return null;
+  }
+
+  String? _validatePassword(
+      String? value,
+      ) {
+    if (value == null ||
+        value.isEmpty) {
+      return 'Please enter a password';
+    }
+
+    if (value.length < 8) {
+      return 'Password must contain at least 8 characters';
+    }
+
+    return null;
+  }
+
+  String? _validateConfirmPassword(
+      String? value,
+      ) {
+    if (value == null ||
+        value.isEmpty) {
+      return 'Please confirm your password';
+    }
+
+    if (value != passwordController.text) {
+      return 'Passwords do not match';
+    }
+
+    return null;
+  }
+
+  String? _validateLocation(
+      String? value,
+      ) {
+    if (value == null ||
+        value.trim().isEmpty) {
+      return 'Please enter your location';
+    }
+
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget build(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Create Account',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 500,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              18,
+              8,
+              18,
+              30,
+            ),
+            children: [
+              _buildHeader(context),
+
+              const SizedBox(height: 22),
+
+              _buildSectionTitle(
+                context,
+                'Personal Information',
+                'Tell us a little about yourself.',
               ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor:
-                      colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.person_add_alt_1,
-                        size: 40,
-                        color:
-                        colorScheme.onPrimaryContainer,
-                      ),
-                    ),
 
-                    const SizedBox(height: 20),
+              const SizedBox(height: 13),
 
-                    const Text(
-                      'Join ChainVault',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+              _buildPersonalInfoCard(
+                context,
+              ),
 
-                    const SizedBox(height: 8),
+              const SizedBox(height: 22),
 
-                    Text(
-                      'Create your secure crypto wallet account',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color:
-                        colorScheme.onSurfaceVariant,
-                        fontSize: 15,
-                      ),
-                    ),
+              _buildSectionTitle(
+                context,
+                'Account Security',
+                'Create secure credentials for your wallet.',
+              ),
 
-                    const SizedBox(height: 30),
+              const SizedBox(height: 13),
 
-                    // NAME
-                    TextFormField(
-                      controller: nameController,
-                      textCapitalization:
-                      TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name',
-                        hintText: 'Enter your full name',
-                        prefixIcon:
-                        Icon(Icons.person_outline),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Please enter your full name';
-                        }
+              _buildSecurityCard(
+                context,
+              ),
 
-                        if (value.trim().length < 3) {
-                          return 'Name must contain at least 3 characters';
-                        }
+              const SizedBox(height: 15),
 
-                        return null;
-                      },
-                    ),
+              _buildLocationInfo(
+                context,
+              ),
 
-                    const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-                    // EMAIL
-                    TextFormField(
-                      controller: emailController,
-                      keyboardType:
-                      TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        hintText: 'Enter your email',
-                        prefixIcon:
-                        Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Please enter your email';
-                        }
+              _buildTermsCard(
+                context,
+              ),
 
-                        final emailRegex = RegExp(
-                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                        );
+              const SizedBox(height: 20),
 
-                        if (!emailRegex.hasMatch(
-                          value.trim(),
-                        )) {
-                          return 'Enter a valid email address';
-                        }
+              _buildCreateButton(
+                context,
+              ),
 
-                        return null;
-                      },
-                    ),
+              const SizedBox(height: 18),
 
-                    const SizedBox(height: 16),
+              _buildLoginSection(
+                context,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-                    // PASSWORD
-                    TextFormField(
-                      controller: passwordController,
-                      obscureText: hidePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        hintText:
-                        'Enter at least 8 characters',
-                        prefixIcon:
-                        const Icon(Icons.lock_outline),
-                        border:
-                        const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              hidePassword =
-                              !hidePassword;
-                            });
-                          },
-                          icon: Icon(
-                            hidePassword
-                                ? Icons.visibility_outlined
-                                : Icons
-                                .visibility_off_outlined,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.isEmpty) {
-                          return 'Please enter a password';
-                        }
+  // ============================================================
+  // HEADER
+  // ============================================================
 
-                        if (value.length < 8) {
-                          return 'Password must contain at least 8 characters';
-                        }
+  Widget _buildHeader(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
-                        return null;
-                      },
-                    ),
+    return Container(
+      padding: const EdgeInsets.all(21),
+      decoration: BoxDecoration(
+        borderRadius:
+        BorderRadius.circular(23),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary
+                .withValues(alpha: 0.18),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.15,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_add_alt_1_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+          ),
 
-                    const SizedBox(height: 16),
+          const SizedBox(width: 15),
 
-                    // CONFIRM PASSWORD
-                    TextFormField(
-                      controller:
-                      confirmPasswordController,
-                      obscureText: hideConfirmPassword,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm Password',
-                        hintText:
-                        'Re-enter your password',
-                        prefixIcon:
-                        const Icon(Icons.lock_reset),
-                        border:
-                        const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              hideConfirmPassword =
-                              !hideConfirmPassword;
-                            });
-                          },
-                          icon: Icon(
-                            hideConfirmPassword
-                                ? Icons.visibility_outlined
-                                : Icons
-                                .visibility_off_outlined,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.isEmpty) {
-                          return 'Please confirm your password';
-                        }
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Join ChainVault',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight:
+                    FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Create your secure crypto wallet account.',
+                  style: TextStyle(
+                    color: Colors.white
+                        .withValues(alpha: 0.78),
+                    fontSize: 11.5,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        if (value !=
-                            passwordController.text) {
-                          return 'Passwords do not match';
-                        }
+  // ============================================================
+  // SECTION TITLE
+  // ============================================================
 
-                        return null;
-                      },
-                    ),
+  Widget _buildSectionTitle(
+      BuildContext context,
+      String title,
+      String subtitle,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
-                    const SizedBox(height: 16),
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight:
+            FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 11,
+            color: colorScheme
+                .onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
 
-                    // LOCATION
-                    TextFormField(
-                      controller: locationController,
-                      decoration: const InputDecoration(
-                        labelText: 'Location',
-                        hintText:
-                        'Enter your city or location',
-                        prefixIcon: Icon(
-                          Icons.location_on_outlined,
-                        ),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Please enter your location';
-                        }
+  // ============================================================
+  // PERSONAL INFORMATION
+  // ============================================================
 
-                        return null;
-                      },
-                    ),
+  Widget _buildPersonalInfoCard(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
-                    const SizedBox(height: 12),
+    return _buildCard(
+      context,
+      child: Column(
+        children: [
+          TextFormField(
+            controller: nameController,
+            textCapitalization:
+            TextCapitalization.words,
+            validator: _validateName,
+            decoration:
+            _inputDecoration(
+              context,
+              label: 'Full Name',
+              hint: 'Enter your full name',
+              icon:
+              Icons.person_outline_rounded,
+            ),
+          ),
 
-                    // LOCATION INFO
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colorScheme
-                            .primaryContainer
-                            .withValues(alpha: 0.4),
-                        borderRadius:
-                        BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: colorScheme.primary,
-                          ),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text(
-                              'For now, enter your location manually. '
-                                  'GPS location will be added later.',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+          const SizedBox(height: 13),
 
-                    const SizedBox(height: 16),
+          TextFormField(
+            controller: emailController,
+            keyboardType:
+            TextInputType.emailAddress,
+            validator: _validateEmail,
+            autocorrect: false,
+            decoration:
+            _inputDecoration(
+              context,
+              label: 'Email',
+              hint: 'Enter your email',
+              icon:
+              Icons.email_outlined,
+            ),
+          ),
 
-                    // TERMS
-                    Row(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Checkbox(
-                          value: agreeTerms,
-                          onChanged: (value) {
-                            setState(() {
-                              agreeTerms =
-                                  value ?? false;
-                            });
-                          },
-                        ),
-                        const Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              top: 12,
-                            ),
-                            child: Text(
-                              'I agree to the ChainVault '
-                                  'terms and conditions and '
-                                  'understand the risks of '
-                                  'cryptocurrency transactions.',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+          const SizedBox(height: 13),
 
-                    const SizedBox(height: 16),
+          TextFormField(
+            controller:
+            locationController,
+            validator:
+            _validateLocation,
+            decoration:
+            _inputDecoration(
+              context,
+              label: 'Location',
+              hint:
+              'Enter your city or location',
+              icon: Icons
+                  .location_on_outlined,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                    // CREATE ACCOUNT
-                    SizedBox(
-                      height: 54,
-                      child: FilledButton.icon(
-                        onPressed: createAccount,
-                        icon: const Icon(
-                          Icons.person_add,
-                        ),
-                        label: const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
+  // ============================================================
+  // SECURITY
+  // ============================================================
 
-                    const SizedBox(height: 20),
-
-                    // LOGIN
-                    Row(
-                      mainAxisAlignment:
-                      MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Already have an account?',
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: const Text('Login'),
-                        ),
-                      ],
-                    ),
-                  ],
+  Widget _buildSecurityCard(
+      BuildContext context,
+      ) {
+    return _buildCard(
+      context,
+      child: Column(
+        children: [
+          TextFormField(
+            controller:
+            passwordController,
+            obscureText:
+            hidePassword,
+            validator:
+            _validatePassword,
+            decoration:
+            _inputDecoration(
+              context,
+              label: 'Password',
+              hint:
+              'Enter at least 8 characters',
+              icon:
+              Icons.lock_outline_rounded,
+              suffixIcon:
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    hidePassword =
+                    !hidePassword;
+                  });
+                },
+                icon: Icon(
+                  hidePassword
+                      ? Icons
+                      .visibility_outlined
+                      : Icons
+                      .visibility_off_outlined,
                 ),
               ),
             ),
           ),
+
+          const SizedBox(height: 13),
+
+          TextFormField(
+            controller:
+            confirmPasswordController,
+            obscureText:
+            hideConfirmPassword,
+            validator:
+            _validateConfirmPassword,
+            decoration:
+            _inputDecoration(
+              context,
+              label: 'Confirm Password',
+              hint:
+              'Re-enter your password',
+              icon:
+              Icons.lock_reset_rounded,
+              suffixIcon:
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    hideConfirmPassword =
+                    !hideConfirmPassword;
+                  });
+                },
+                icon: Icon(
+                  hideConfirmPassword
+                      ? Icons
+                      .visibility_outlined
+                      : Icons
+                      .visibility_off_outlined,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildPasswordHint(
+            context,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // PASSWORD HINT
+  // ============================================================
+
+  Widget _buildPasswordHint(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.info_outline_rounded,
+          size: 17,
+          color: colorScheme.primary,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            'Use at least 8 characters and avoid sharing your password with anyone.',
+            style: TextStyle(
+              fontSize: 10.5,
+              height: 1.4,
+              color: colorScheme
+                  .onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // LOCATION INFO
+  // ============================================================
+
+  Widget _buildLocationInfo(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme
+            .primaryContainer
+            .withValues(alpha: 0.42),
+        borderRadius:
+        BorderRadius.circular(17),
+        border: Border.all(
+          color: colorScheme.primary
+              .withValues(alpha: 0.10),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 20,
+            color: colorScheme
+                .onPrimaryContainer,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'For now, enter your location manually. '
+                  'GPS location can be added later.',
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.5,
+                color: colorScheme
+                    .onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // TERMS
+  // ============================================================
+
+  Widget _buildTermsCard(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(17),
+        border: Border.all(
+          color: agreeTerms
+              ? colorScheme.primary
+              .withValues(alpha: 0.35)
+              : colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Checkbox.adaptive(
+            value: agreeTerms,
+            onChanged: (value) {
+              setState(() {
+                agreeTerms =
+                    value ?? false;
+              });
+            },
+          ),
+
+          Expanded(
+            child: Padding(
+              padding:
+              const EdgeInsets.only(
+                top: 10,
+                right: 5,
+              ),
+              child: Text(
+                'I agree to the ChainVault terms and conditions and understand the risks of cryptocurrency transactions.',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  height: 1.45,
+                  color: colorScheme
+                      .onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // CREATE BUTTON
+  // ============================================================
+
+  Widget _buildCreateButton(
+      BuildContext context,
+      ) {
+    return SizedBox(
+      height: 55,
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: isCreatingAccount
+            ? null
+            : createAccount,
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(17),
+          ),
+        ),
+        icon: isCreatingAccount
+            ? const SizedBox(
+          width: 20,
+          height: 20,
+          child:
+          CircularProgressIndicator(
+            strokeWidth: 2.3,
+            color: Colors.white,
+          ),
+        )
+            : const Icon(
+          Icons.person_add_rounded,
+        ),
+        label: Text(
+          isCreatingAccount
+              ? 'Creating Account...'
+              : 'Create Account',
+          style: const TextStyle(
+            fontSize: 14.5,
+            fontWeight:
+            FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // LOGIN
+  // ============================================================
+
+  Widget _buildLoginSection(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Row(
+      mainAxisAlignment:
+      MainAxisAlignment.center,
+      children: [
+        Text(
+          'Already have an account?',
+          style: TextStyle(
+            fontSize: 11.5,
+            color: colorScheme
+                .onSurfaceVariant,
+          ),
+        ),
+        TextButton(
+          onPressed: isCreatingAccount
+              ? null
+              : () {
+            Navigator.pop(context);
+          },
+          child: const Text(
+            'Login',
+            style: TextStyle(
+              fontWeight:
+              FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // COMMON CARD
+  // ============================================================
+
+  Widget _buildCard(
+      BuildContext context, {
+        required Widget child,
+      }) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(21),
+        border: Border.all(
+          color: colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow
+                .withValues(alpha: 0.035),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  // ============================================================
+  // INPUT DECORATION
+  // ============================================================
+
+  InputDecoration _inputDecoration(
+      BuildContext context, {
+        required String label,
+        required String hint,
+        required IconData icon,
+        Widget? suffixIcon,
+      }) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor:
+      colorScheme.surfaceContainerLow,
+      border: OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(15),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(15),
+        borderSide: BorderSide(
+          color: colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.35),
+        ),
+      ),
+      focusedBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(15),
+        borderSide: BorderSide(
+          color: colorScheme.primary,
+          width: 1.4,
+        ),
+      ),
+      errorBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(15),
+        borderSide: BorderSide(
+          color: colorScheme.error,
+        ),
+      ),
+      focusedErrorBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(15),
+        borderSide: BorderSide(
+          color: colorScheme.error,
+          width: 1.4,
         ),
       ),
     );

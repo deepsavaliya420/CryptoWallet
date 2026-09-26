@@ -7,216 +7,145 @@ class ProfileInfoScreen extends StatelessWidget {
     super.key,
   });
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor:
-      const Color(0xFFF7F8FA),
-
-      // ==========================================================
-      // APP BAR
-      // ==========================================================
-
       appBar: AppBar(
-        backgroundColor:
-        const Color(0xFFF7F8FA),
-        elevation: 0,
-        centerTitle: true,
-
         title: const Text(
           'Profile Info',
           style: TextStyle(
-            color:
-            Color(0xFF111827),
-            fontSize: 20,
-            fontWeight:
-            FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
-        ),
-
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color:
-            Color(0xFF111827),
-            size: 20,
-          ),
-          onPressed: () {
-            Navigator.of(context)
-                .pop();
-          },
         ),
       ),
-
-      // ==========================================================
-      // BODY
-      // ==========================================================
-
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding:
-          const EdgeInsets.fromLTRB(
-            20,
-            12,
-            20,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            18,
+            8,
+            18,
             30,
           ),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              // ==================================================
-              // PROFILE
-              // ==================================================
+          children: [
+            _buildProfileHeader(context),
 
-              _buildProfileCard(
-                context,
+            const SizedBox(height: 22),
+
+            _buildSectionTitle(
+              context,
+              'Your Profile',
+              'Basic information about your wallet account.',
+            ),
+
+            const SizedBox(height: 13),
+
+            _buildProfileCard(context),
+
+            const SizedBox(height: 23),
+
+            _buildSectionTitle(
+              context,
+              'Need Assistance?',
+              'Get help whenever you need it.',
+            ),
+
+            const SizedBox(height: 13),
+
+            _buildCustomerSupportCard(context),
+
+            const SizedBox(height: 23),
+
+            _buildSecurityNotice(context),
+
+            const SizedBox(height: 14),
+
+            Center(
+              child: Text(
+                'Your security is our priority',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              // ==================================================
-              // CUSTOMER SUPPORT
-              // ==================================================
-
-              _buildCustomerSupportCard(
-                context,
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              // ==================================================
-              // SECURITY
-              // ==================================================
-
-              _buildSecurityNotice(),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ============================================================
-  // PROFILE CARD
-  // ============================================================
+  Widget _buildProfileHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-  Widget _buildProfileCard(
-      BuildContext context,
-      ) {
     return Container(
-      width: double.infinity,
-      padding:
-      const EdgeInsets.all(20),
-
-      decoration:
-      BoxDecoration(
-        color: Colors.white,
-
-        borderRadius:
-        BorderRadius.circular(
-          20,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(23),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
         ),
-
         boxShadow: [
           BoxShadow(
-            color:
-            Colors.black.withOpacity(
-              0.04,
+            color: colorScheme.primary.withValues(
+              alpha: 0.18,
             ),
-            blurRadius: 14,
-            offset:
-            const Offset(
-              0,
-              5,
-            ),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
           ),
         ],
       ),
-
       child: Row(
         children: [
-          // ==================================================
-          // PROFILE ICON
-          // ==================================================
-
           Container(
-            width: 58,
-            height: 58,
-
-            decoration:
-            BoxDecoration(
-              color:
-              const Color(
-                0xFFEEF2FF,
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.15,
               ),
-
-              borderRadius:
-              BorderRadius.circular(
-                18,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(
+                  alpha: 0.18,
+                ),
               ),
             ),
-
             child: const Icon(
-              Icons.person_outline,
-              size: 30,
-              color:
-              Color(0xFF4F46E5),
+              Icons.person_outline_rounded,
+              color: Colors.white,
+              size: 31,
             ),
           ),
-
-          const SizedBox(
-            width: 15,
-          ),
-
-          // ==================================================
-          // PROFILE TEXT
-          // ==================================================
-
-          const Expanded(
+          const SizedBox(width: 15),
+          Expanded(
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
-
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Wallet Owner',
-                  style:
-                  TextStyle(
-                    fontSize: 17,
-                    fontWeight:
-                    FontWeight.w700,
-                    color:
-                    Color(
-                      0xFF111827,
-                    ),
+                const Text(
+                  'Profile & Support',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-
-                SizedBox(
-                  height: 5,
-                ),
-
+                const SizedBox(height: 5),
                 Text(
-                  'Personal Wallet',
-                  style:
-                  TextStyle(
-                    fontSize: 13,
-                    color:
-                    Color(
-                      0xFF6B7280,
+                  'Manage your wallet information and get assistance.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(
+                      alpha: 0.78,
                     ),
+                    fontSize: 11.5,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -227,237 +156,402 @@ class ProfileInfoScreen extends StatelessWidget {
     );
   }
 
-  // ============================================================
-  // CUSTOMER SUPPORT CARD
-  // ============================================================
-
-  Widget _buildCustomerSupportCard(
+  Widget _buildSectionTitle(
       BuildContext context,
+      String title,
+      String subtitle,
       ) {
-    return Container(
-      width: double.infinity,
-      padding:
-      const EdgeInsets.all(18),
+    final colorScheme = Theme.of(context).colorScheme;
 
-      decoration:
-      BoxDecoration(
-        color: Colors.white,
-
-        borderRadius:
-        BorderRadius.circular(
-          20,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
         ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 11,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildProfileCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: 0.4,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color:
-            Colors.black.withOpacity(
-              0.04,
+            color: colorScheme.shadow.withValues(
+              alpha: 0.035,
             ),
-            blurRadius: 14,
-            offset:
-            const Offset(
-              0,
-              5,
-            ),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 55,
+                height: 55,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primaryContainer,
+                      colorScheme.secondaryContainer,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 28,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Wallet Owner',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Personal Wallet',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(
+                    alpha: 0.09,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.verified_rounded,
+                      size: 14,
+                      color: Colors.green,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Active',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
 
-      child: InkWell(
-        borderRadius:
-        BorderRadius.circular(
-          20,
+          const SizedBox(height: 18),
+
+          Divider(
+            height: 1,
+            color: colorScheme.outlineVariant.withValues(
+              alpha: 0.4,
+            ),
+          ),
+
+          const SizedBox(height: 5),
+
+          _buildInfoRow(
+            context,
+            icon: Icons.account_balance_wallet_outlined,
+            title: 'Wallet Type',
+            value: 'Personal Wallet',
+          ),
+
+          _buildInfoRow(
+            context,
+            icon: Icons.security_outlined,
+            title: 'Security',
+            value: 'Protected',
+          ),
+
+          _buildInfoRow(
+            context,
+            icon: Icons.public_rounded,
+            title: 'Access',
+            value: 'Private',
+            showDivider: false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required String value,
+        bool showDivider = true,
+      }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 11,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            indent: 50,
+            color: colorScheme.outlineVariant.withValues(
+              alpha: 0.35,
+            ),
+          ),
+      ],
+    );
+  }
 
+  Widget _buildCustomerSupportCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colorScheme.surface,
+      borderRadius: BorderRadius.circular(21),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(21),
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder:
-                  (BuildContext context) {
-                return const CustomerSupportScreen();
-              },
+              builder: (context) =>
+              const CustomerSupportScreen(),
             ),
           );
         },
-
-        child: Row(
-          children: [
-            // ==================================================
-            // SUPPORT ICON
-            // ==================================================
-
-            Container(
-              width: 50,
-              height: 50,
-
-              decoration:
-              BoxDecoration(
-                color:
-                const Color(
-                  0xFFEEF2FF,
+        child: Container(
+          padding: const EdgeInsets.all(17),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(21),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(
+                alpha: 0.4,
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.shadow.withValues(
+                  alpha: 0.035,
                 ),
-
-                borderRadius:
-                BorderRadius.circular(
-                  15,
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primaryContainer,
+                      colorScheme.secondaryContainer,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  Icons.support_agent_rounded,
+                  color: colorScheme.primary,
+                  size: 27,
                 ),
               ),
 
-              child: const Icon(
-                Icons
-                    .support_agent_outlined,
-                color:
-                Color(0xFF4F46E5),
-                size: 27,
-              ),
-            ),
+              const SizedBox(width: 14),
 
-            const SizedBox(
-              width: 14,
-            ),
-
-            // ==================================================
-            // SUPPORT TEXT
-            // ==================================================
-
-            const Expanded(
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-
-                children: [
-                  Text(
-                    'Customer Support',
-                    style:
-                    TextStyle(
-                      fontSize: 16,
-                      fontWeight:
-                      FontWeight.w700,
-                      color:
-                      Color(
-                        0xFF111827,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Customer Support',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
-
-                  SizedBox(
-                    height: 5,
-                  ),
-
-                  Text(
-                    'Get help or contact our community',
-                    style:
-                    TextStyle(
-                      fontSize: 12,
-                      color:
-                      Color(
-                        0xFF6B7280,
+                    const SizedBox(height: 5),
+                    Text(
+                      'Get help or contact our community',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
-            // ==================================================
-            // ARROW
-            // ==================================================
-
-            const Icon(
-              Icons.arrow_forward_ios,
-              color:
-              Color(0xFF9CA3AF),
-              size: 17,
-            ),
-          ],
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerLow,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ============================================================
-  // SECURITY NOTICE
-  // ============================================================
+  Widget _buildSecurityNotice(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-  Widget _buildSecurityNotice() {
     return Container(
-      width: double.infinity,
-      padding:
-      const EdgeInsets.all(18),
-
-      decoration:
-      BoxDecoration(
-        color:
-        const Color(0xFFF0FDF4),
-
-        borderRadius:
-        BorderRadius.circular(
-          18,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(
+          alpha: 0.38,
         ),
-
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color:
-          const Color(0xFFBBF7D0),
+          color: colorScheme.primary.withValues(
+            alpha: 0.12,
+          ),
         ),
       ),
-
-      child: const Row(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons
-                .security_outlined,
-            color:
-            Color(0xFF16A34A),
-            size: 24,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.shield_outlined,
+              color: colorScheme.primary,
+              size: 21,
+            ),
           ),
 
-          SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 11),
 
           Expanded(
             child: Column(
               crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
-
+              CrossAxisAlignment.start,
               children: [
                 Text(
                   'Keep your wallet secure',
-                  style:
-                  TextStyle(
-                    fontSize: 14,
-                    fontWeight:
-                    FontWeight.w700,
-                    color:
-                    Color(
-                      0xFF166534,
-                    ),
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: colorScheme.onPrimaryContainer,
                   ),
                 ),
-
-                SizedBox(
-                  height: 6,
-                ),
-
+                const SizedBox(height: 6),
                 Text(
-                  'Never share your private key, recovery '
-                      'phrase, password, or other sensitive '
-                      'wallet information with anyone.',
-                  style:
-                  TextStyle(
-                    fontSize: 12,
+                  'Never share your private key, recovery phrase, '
+                      'password, or other sensitive wallet information '
+                      'with anyone.',
+                  style: TextStyle(
+                    fontSize: 11,
                     height: 1.5,
-                    color:
-                    Color(
-                      0xFF166534,
-                    ),
+                    color: colorScheme.onPrimaryContainer,
                   ),
                 ),
               ],

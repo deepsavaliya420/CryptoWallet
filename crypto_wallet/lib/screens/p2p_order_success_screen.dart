@@ -47,27 +47,11 @@ class _P2POrderSuccessScreenState
 
   Future<void> _completeP2PPayment() async {
     try {
-      /*
-       * STEP 1
-       * Add purchased crypto to wallet.
-       *
-       * Example:
-       * Existing USDT = 250
-       * Purchased USDT = 500
-       * New balance = 750 USDT
-       */
       await WalletService.addP2PPurchasedCrypto(
         asset: widget.asset,
         amount: widget.amount,
       );
 
-      /*
-       * STEP 2
-       * Create a RECEIVED transaction.
-       *
-       * This will appear in:
-       * Home -> Recent Transactions
-       */
       await TransactionService
           .createP2PReceivedTransaction(
         asset: widget.asset,
@@ -98,12 +82,12 @@ class _P2POrderSuccessScreenState
         paymentCompleted = false;
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Failed to update wallet: $error',
           ),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -113,16 +97,12 @@ class _P2POrderSuccessScreenState
     switch (asset.toUpperCase()) {
       case 'USDT':
         return 'TRC-20';
-
       case 'ETH':
         return 'ERC-20';
-
       case 'SOL':
         return 'Solana';
-
       case 'TRX':
         return 'TRC-20';
-
       default:
         return 'Unknown';
     }
@@ -132,8 +112,7 @@ class _P2POrderSuccessScreenState
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-        const HomeScreen(),
+        builder: (context) => const HomeScreen(),
       ),
           (route) => false,
     );
@@ -150,232 +129,504 @@ class _P2POrderSuccessScreenState
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: const Text(
-            'Payment Successful',
+            'Order Status',
             style: TextStyle(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
         body: SafeArea(
-          child: Padding(
-            padding:
-            const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              18,
+              10,
+              18,
+              30,
+            ),
+            children: [
+              _buildStatusHeader(context),
 
-                CircleAvatar(
-                  radius: 42,
-                  backgroundColor:
-                  Colors.green
-                      .withValues(alpha: 0.15),
-                  child: Icon(
-                    Icons.check,
-                    size: 48,
-                    color: Colors.green,
-                  ),
+              const SizedBox(height: 22),
+
+              _buildOrderCard(context),
+
+              const SizedBox(height: 16),
+
+              if (paymentCompleted)
+                _buildWalletAddedCard(context),
+
+              if (isProcessing)
+                _buildProcessingCard(context),
+
+              if (!paymentCompleted &&
+                  !isProcessing)
+                _buildFailureCard(context),
+
+              const SizedBox(height: 20),
+
+              _buildBackButton(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusHeader(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    final bool success = paymentCompleted;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        25,
+        20,
+        23,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: success
+              ? [
+            Colors.green.shade700,
+            Colors.green.shade500,
+          ]
+              : [
+            colorScheme.primary,
+            colorScheme.secondary,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (success
+                ? Colors.green
+                : colorScheme.primary)
+                .withValues(alpha: 0.20),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.16,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: isProcessing
+                ? const Padding(
+              padding: EdgeInsets.all(21),
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Colors.white,
+              ),
+            )
+                : Icon(
+              success
+                  ? Icons.check_rounded
+                  : Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 43,
+            ),
+          ),
+
+          const SizedBox(height: 17),
+
+          Text(
+            isProcessing
+                ? 'Processing Payment'
+                : success
+                ? 'P2P Payment Successful'
+                : 'Payment Update Failed',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+
+          const SizedBox(height: 7),
+
+          Text(
+            isProcessing
+                ? 'Please wait while your wallet is being updated.'
+                : success
+                ? '${widget.amount.toStringAsFixed(2)} ${widget.asset} has been added to your wallet.'
+                : 'We could not complete the wallet update.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(
+                alpha: 0.82,
+              ),
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: colorScheme.outlineVariant
+              .withValues(alpha: 0.4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow
+                .withValues(alpha: 0.035),
+            blurRadius: 17,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme
+                      .primaryContainer,
+                  borderRadius:
+                  BorderRadius.circular(12),
                 ),
+                child: Icon(
+                  Icons.receipt_long_rounded,
+                  size: 21,
+                  color: colorScheme
+                      .onPrimaryContainer,
+                ),
+              ),
 
-                const SizedBox(height: 18),
+              const SizedBox(width: 11),
 
-                const Text(
-                  'P2P Payment Successful',
-                  textAlign: TextAlign.center,
+              const Expanded(
+                child: Text(
+                  'Order Details',
                   style: TextStyle(
-                    fontSize: 25,
-                    fontWeight:
-                    FontWeight.bold,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
+              ),
 
-                const SizedBox(height: 8),
-
-                Text(
+              Container(
+                padding:
+                const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: paymentCompleted
+                      ? Colors.green
+                      .withValues(alpha: 0.10)
+                      : colorScheme
+                      .surfaceContainerHighest,
+                  borderRadius:
+                  BorderRadius.circular(9),
+                ),
+                child: Text(
                   isProcessing
-                      ? 'Updating your wallet...'
+                      ? 'PROCESSING'
                       : paymentCompleted
-                      ? '${widget.amount.toStringAsFixed(2)} ${widget.asset} has been added to your wallet.'
-                      : 'Wallet update failed.',
-                  textAlign: TextAlign.center,
+                      ? 'COMPLETED'
+                      : 'FAILED',
                   style: TextStyle(
-                    color: colorScheme
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: paymentCompleted
+                        ? Colors.green.shade700
+                        : colorScheme
                         .onSurfaceVariant,
                   ),
                 ),
+              ),
+            ],
+          ),
 
-                const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
-                Expanded(
-                  child: Card(
-                    child: ListView(
-                      padding:
-                      const EdgeInsets.all(
-                        20,
-                      ),
-                      children: [
-                        _DetailRow(
-                          title: 'Order ID',
-                          value: orderId,
-                        ),
+          _DetailRow(
+            title: 'Order ID',
+            value: orderId,
+            mono: true,
+          ),
 
-                        _DetailRow(
-                          title: 'Asset',
-                          value:
-                          widget.asset,
-                        ),
+          _DetailRow(
+            title: 'Asset',
+            value: widget.asset,
+          ),
 
-                        _DetailRow(
-                          title: 'Seller',
-                          value: widget
-                              .offer
-                              .sellerName,
-                        ),
-
-                        _DetailRow(
-                          title: 'Price',
-                          value:
-                          '₹${widget.offer.price.toStringAsFixed(2)} / ${widget.asset}',
-                        ),
-
-                        _DetailRow(
-                          title: 'Amount',
-                          value:
-                          '${widget.amount.toStringAsFixed(2)} ${widget.asset}',
-                        ),
-
-                        _DetailRow(
-                          title:
-                          'Payment Method',
-                          value:
-                          widget.paymentMethod,
-                        ),
-
-                        _DetailRow(
-                          title:
-                          'Total Payment',
-                          value:
-                          '₹${widget.totalPrice.toStringAsFixed(2)}',
-                        ),
-
-                        const SizedBox(
-                          height: 20,
-                        ),
-
-                        if (paymentCompleted)
-                          Container(
-                            padding:
-                            const EdgeInsets
-                                .all(18),
-                            decoration:
-                            BoxDecoration(
-                              color: Colors.green
-                                  .withValues(
-                                alpha: 0.12,
-                              ),
-                              borderRadius:
-                              BorderRadius
-                                  .circular(
-                                14,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  Icons
-                                      .account_balance_wallet,
-                                  size: 40,
-                                  color:
-                                  Colors.green,
-                                ),
-
-                                const SizedBox(
-                                  height: 10,
-                                ),
-
-                                const Text(
-                                  'Crypto Added to Wallet',
-                                  style:
-                                  TextStyle(
-                                    fontSize: 18,
-                                    fontWeight:
-                                    FontWeight
-                                        .bold,
-                                  ),
-                                ),
-
-                                const SizedBox(
-                                  height: 8,
-                                ),
-
-                                Text(
-                                  '+${widget.amount.toStringAsFixed(2)} ${widget.asset}',
-                                  style:
-                                  const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight:
-                                    FontWeight
-                                        .bold,
-                                    color:
-                                    Colors.green,
-                                  ),
-                                ),
-
-                                const SizedBox(
-                                  height: 8,
-                                ),
-
-                                const Text(
-                                  'Transaction status: Completed',
-                                ),
-
-                                const SizedBox(
-                                  height: 6,
-                                ),
-
-                                Text(
-                                  '₹${widget.totalPrice.toStringAsFixed(2)} paid successfully',
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        if (isProcessing)
-                          const Padding(
-                            padding:
-                            EdgeInsets.all(
-                              20,
-                            ),
-                            child: Center(
-                              child:
-                              CircularProgressIndicator(),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                SizedBox(
-                  width:
-                  double.infinity,
-                  height: 52,
-                  child: FilledButton.icon(
-                    onPressed:
-                    isProcessing
-                        ? null
-                        : goToHome,
-                    icon: const Icon(
-                      Icons.home,
-                    ),
-                    label: const Text(
-                      'Back to Wallet',
-                    ),
-                  ),
-                ),
-              ],
+          _DetailRow(
+            title: 'Network',
+            value: _networkForAsset(
+              widget.asset,
             ),
+          ),
+
+          _DetailRow(
+            title: 'Seller',
+            value: widget.offer.sellerName,
+          ),
+
+          _DetailRow(
+            title: 'Price',
+            value:
+            '₹${widget.offer.price.toStringAsFixed(2)} / ${widget.asset}',
+          ),
+
+          _DetailRow(
+            title: 'Amount',
+            value:
+            '${widget.amount.toStringAsFixed(2)} ${widget.asset}',
+          ),
+
+          _DetailRow(
+            title: 'Payment Method',
+            value: widget.paymentMethod,
+          ),
+
+          const SizedBox(height: 9),
+
+          Divider(
+            color: colorScheme.outlineVariant
+                .withValues(alpha: 0.5),
+          ),
+
+          const SizedBox(height: 9),
+
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Total Payment',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                '₹${widget.totalPrice.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWalletAddedCard(
+      BuildContext context,
+      ) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(
+          alpha: 0.08,
+        ),
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(
+          color: Colors.green.withValues(
+            alpha: 0.18,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(
+                alpha: 0.13,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: Colors.green,
+              size: 29,
+            ),
+          ),
+
+          const SizedBox(height: 13),
+
+          const Text(
+            'Crypto Added to Wallet',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+
+          const SizedBox(height: 7),
+
+          Text(
+            '+${widget.amount.toStringAsFixed(2)} ${widget.asset}',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.green,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'Transaction status: Completed',
+            style: TextStyle(
+              color: Colors.green.shade700,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+            '₹${widget.totalPrice.toStringAsFixed(2)} paid successfully',
+            style: TextStyle(
+              color: Colors.green.shade700,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProcessingCard(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colorScheme
+            .surfaceContainerLow,
+        borderRadius: BorderRadius.circular(19),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: colorScheme.primary,
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          const Expanded(
+            child: Text(
+              'Updating wallet and recording transaction...',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFailureCard(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer
+            .withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: colorScheme.onErrorContainer,
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              'The wallet could not be updated. Please check your wallet balance and transaction history.',
+              style: TextStyle(
+                color: colorScheme
+                    .onErrorContainer,
+                fontSize: 11,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackButton(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed:
+        isProcessing ? null : goToHome,
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(17),
+          ),
+        ),
+        icon: const Icon(
+          Icons.home_rounded,
+        ),
+        label: Text(
+          isProcessing
+              ? 'Please Wait...'
+              : 'Back to Wallet',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -386,20 +637,22 @@ class _P2POrderSuccessScreenState
 class _DetailRow extends StatelessWidget {
   final String title;
   final String value;
+  final bool mono;
 
   const _DetailRow({
     required this.title,
     required this.value,
+    this.mono = false,
   });
 
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
     return Padding(
-      padding:
-      const EdgeInsets.symmetric(
-        vertical: 8,
+      padding: const EdgeInsets.symmetric(
+        vertical: 6,
       ),
       child: Row(
         crossAxisAlignment:
@@ -409,24 +662,24 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
+                fontSize: 11,
+                color: colorScheme
                     .onSurfaceVariant,
               ),
             ),
           ),
 
-          const SizedBox(width: 15),
+          const SizedBox(width: 14),
 
-          Expanded(
+          Flexible(
             child: Text(
               value,
-              textAlign:
-              TextAlign.end,
-              style:
-              const TextStyle(
-                fontWeight:
-                FontWeight.w600,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                fontFamily:
+                mono ? 'monospace' : null,
               ),
             ),
           ),

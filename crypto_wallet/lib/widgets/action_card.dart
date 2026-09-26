@@ -14,32 +14,74 @@ class ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
+        borderRadius:
+        BorderRadius.circular(18),
+        splashColor:
+        colorScheme.primary.withValues(
+          alpha: 0.08,
+        ),
+        highlightColor:
+        colorScheme.primary.withValues(
+          alpha: 0.04,
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: 16,
+          padding:
+          const EdgeInsets.symmetric(
+            vertical: 17,
             horizontal: 8,
           ),
           child: Column(
+            mainAxisAlignment:
+            MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: colorScheme.primaryContainer,
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin:
+                    Alignment.topLeft,
+                    end:
+                    Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary
+                          .withValues(
+                        alpha: 0.14,
+                      ),
+                      colorScheme
+                          .secondaryContainer,
+                    ],
+                  ),
+                  borderRadius:
+                  BorderRadius.circular(15),
+                ),
                 child: Icon(
                   icon,
-                  color: colorScheme.onPrimaryContainer,
+                  size: 23,
+                  color:
+                  colorScheme.primary,
                 ),
               ),
-              const SizedBox(height: 8),
+
+              const SizedBox(height: 10),
+
               Text(
                 title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow:
+                TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  fontWeight:
+                  FontWeight.w700,
                 ),
               ),
             ],

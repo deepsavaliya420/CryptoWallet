@@ -1,7 +1,6 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/user_profile.dart';
 import '../models/user_settings.dart';
+import 'api_service.dart';
 
 class UserService {
   static UserProfile? _currentUser;
@@ -19,17 +18,52 @@ class UserService {
     _currentUser = user;
 
     if (loadSavedProfile) {
-      final savedProfile = await _loadProfile(
-        user.email,
-      );
+      try {
+        final response = await ApiService.get('/user/profile');
 
-      if (savedProfile != null) {
-        _currentUser = savedProfile;
+        if (response['success'] == true &&
+            response['user'] != null) {
+          final userData = response['user'];
+
+          _currentUser = UserProfile(
+            userId: userData['userId'] ?? user.userId,
+            fullName: userData['fullName'] ?? user.fullName,
+            email: userData['email'] ?? user.email,
+            location: userData['location'] ?? user.location,
+            phone: userData['phone'] ?? user.phone,
+            walletAddress:
+            userData['walletAddress'] ?? user.walletAddress,
+          );
+        }
+      } catch (e) {
+        _currentUser = user;
       }
     }
   }
 
   static Future<UserProfile?> getProfile() async {
+    try {
+      final response = await ApiService.get('/user/profile');
+
+      if (response['success'] == true &&
+          response['user'] != null) {
+        final userData = response['user'];
+
+        _currentUser = UserProfile(
+          userId: userData['userId'] ?? '',
+          fullName: userData['fullName'] ?? '',
+          email: userData['email'] ?? '',
+          location: userData['location'] ?? 'India',
+          phone: userData['phone'] ?? '',
+          walletAddress: userData['walletAddress'] ?? '',
+        );
+
+        return _currentUser;
+      }
+    } catch (e) {
+      return _currentUser;
+    }
+
     return _currentUser;
   }
 
@@ -46,15 +80,45 @@ class UserService {
 
     final oldUser = _currentUser!;
 
-    _currentUser = oldUser.copyWith(
-      fullName: fullName,
-      email: email,
-      location: location,
-      phone: phone,
-      walletAddress: walletAddress,
-    );
+    final newFullName = fullName ?? oldUser.fullName;
+    final newLocation = location ?? oldUser.location;
+    final newPhone = phone ?? oldUser.phone;
 
-    await _saveProfile(_currentUser!);
+    try {
+      final response = await ApiService.put(
+        '/user/profile',
+        {
+          'fullName': newFullName,
+          'location': newLocation,
+          'phone': newPhone,
+        },
+      );
+
+      if (response['success'] == true &&
+          response['user'] != null) {
+        final userData = response['user'];
+
+        _currentUser = UserProfile(
+          userId: userData['userId'] ?? oldUser.userId,
+          fullName: userData['fullName'] ?? newFullName,
+          email: userData['email'] ?? oldUser.email,
+          location: userData['location'] ?? newLocation,
+          phone: userData['phone'] ?? newPhone,
+          walletAddress:
+          userData['walletAddress'] ?? oldUser.walletAddress,
+        );
+      }
+    } catch (e) {
+      _currentUser = oldUser.copyWith(
+        fullName: fullName,
+        email: email,
+        location: location,
+        phone: phone,
+        walletAddress: walletAddress,
+      );
+
+      rethrow;
+    }
   }
 
   static Future<void> updateWalletSettings({
@@ -65,145 +129,16 @@ class UserService {
     _settings.walletName = walletName;
     _settings.defaultNetwork = defaultNetwork;
     _settings.displayCurrency = displayCurrency;
-
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      'wallet_name',
-      walletName,
-    );
-
-    await prefs.setString(
-      'default_network',
-      defaultNetwork,
-    );
-
-    await prefs.setString(
-      'display_currency',
-      displayCurrency,
-    );
   }
 
   static Future<void> updateSettings(
       UserSettings newSettings,
       ) async {
     _settings = newSettings;
-
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      'wallet_name',
-      newSettings.walletName,
-    );
-
-    await prefs.setString(
-      'default_network',
-      newSettings.defaultNetwork,
-    );
-
-    await prefs.setString(
-      'display_currency',
-      newSettings.displayCurrency,
-    );
   }
 
   static Future<void> clearUser() async {
     _currentUser = null;
     _settings = UserSettings();
-  }
-
-  static Future<void> _saveProfile(
-      UserProfile user,
-      ) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final emailKey = _emailKey(user.email);
-
-    await prefs.setString(
-      '${emailKey}_userId',
-      user.userId,
-    );
-
-    await prefs.setString(
-      '${emailKey}_fullName',
-      user.fullName,
-    );
-
-    await prefs.setString(
-      '${emailKey}_email',
-      user.email,
-    );
-
-    await prefs.setString(
-      '${emailKey}_location',
-      user.location,
-    );
-
-    await prefs.setString(
-      '${emailKey}_phone',
-      user.phone,
-    );
-
-    await prefs.setString(
-      '${emailKey}_walletAddress',
-      user.walletAddress,
-    );
-  }
-
-  static Future<UserProfile?> _loadProfile(
-      String email,
-      ) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final emailKey = _emailKey(email);
-
-    final userId = prefs.getString(
-      '${emailKey}_userId',
-    );
-
-    final fullName = prefs.getString(
-      '${emailKey}_fullName',
-    );
-
-    final savedEmail = prefs.getString(
-      '${emailKey}_email',
-    );
-
-    final location = prefs.getString(
-      '${emailKey}_location',
-    );
-
-    final phone = prefs.getString(
-      '${emailKey}_phone',
-    );
-
-    final walletAddress = prefs.getString(
-      '${emailKey}_walletAddress',
-    );
-
-    if (userId == null ||
-        fullName == null ||
-        savedEmail == null ||
-        location == null ||
-        phone == null ||
-        walletAddress == null) {
-      return null;
-    }
-
-    return UserProfile(
-      userId: userId,
-      fullName: fullName,
-      email: savedEmail,
-      location: location,
-      phone: phone,
-      walletAddress: walletAddress,
-    );
-  }
-
-  static String _emailKey(String email) {
-    return 'profile_${email.trim().toLowerCase().replaceAll(
-      RegExp(r'[^a-zA-Z0-9]'),
-      '_',
-    )}';
   }
 }

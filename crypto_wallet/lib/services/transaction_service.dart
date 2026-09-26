@@ -1,15 +1,9 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/transaction.dart';
+import 'api_service.dart';
 
 class TransactionService {
-  static const String _storageKey =
-      'wallet_transactions';
-
-  static final List<WalletTransaction>
-  _transactions = <WalletTransaction>[];
+  static final List<WalletTransaction> _transactions =
+  <WalletTransaction>[];
 
   static bool _initialized = false;
 
@@ -22,44 +16,40 @@ class TransactionService {
       return;
     }
 
-    final SharedPreferences prefs =
-    await SharedPreferences.getInstance();
+    try {
+      final response = await ApiService.get(
+        '/transactions',
+      );
 
-    final List<String>? saved =
-    prefs.getStringList(_storageKey);
+      if (response['success'] == true) {
+        final List<dynamic> transactionsData =
+            response['transactions'] ?? [];
 
-    _transactions.clear();
+        _transactions.clear();
 
-    if (saved != null) {
-      for (final String item in saved) {
-        try {
-          final dynamic decoded =
-          jsonDecode(item);
-
-          if (decoded is Map<String, dynamic>) {
+        for (final dynamic item in transactionsData) {
+          if (item is Map<String, dynamic>) {
             _transactions.add(
-              WalletTransaction.fromMap(
-                decoded,
-              ),
+              _fromBackendMap(item),
             );
           }
-        } catch (_) {
-          // Ignore invalid saved transaction.
         }
+
+        _sortTransactions();
+        _initialized = true;
       }
+    } catch (e) {
+      _transactions.clear();
+      _initialized = false;
+      rethrow;
     }
-
-    _sortTransactions();
-
-    _initialized = true;
   }
 
   // ============================================================
   // CREATE TRANSACTION
   // ============================================================
 
-  static Future<WalletTransaction>
-  createTransaction({
+  static Future<WalletTransaction> createTransaction({
     required String type,
     required String asset,
     required String network,
@@ -76,18 +66,40 @@ class TransactionService {
       );
     }
 
+    final String backendType =
+    _convertTypeToBackend(type);
+
+    final response = await ApiService.post(
+      '/transactions',
+      {
+        'type': backendType,
+        'asset': asset,
+        'amount': amount,
+        'from': from,
+        'to': to,
+        'status': 'completed',
+        'network': network,
+        'description': 'Wallet transaction',
+      },
+    );
+
+    if (response['success'] != true ||
+        response['transaction'] == null) {
+      throw StateError(
+        'Transaction could not be created.',
+      );
+    }
+
+    final Map<String, dynamic> transactionData =
+    Map<String, dynamic>.from(
+      response['transaction'],
+    );
+
     final WalletTransaction transaction =
-    WalletTransaction(
-      id:
-      'TX-${DateTime.now().millisecondsSinceEpoch}',
-      type: type,
-      asset: asset,
-      network: network,
-      amount: amount,
-      value: value,
-      from: from,
-      to: to,
-      timestamp: DateTime.now(),
+    _fromBackendMap(
+      transactionData,
+      valueOverride: value,
+      typeOverride: type,
     );
 
     _transactions.insert(
@@ -95,7 +107,7 @@ class TransactionService {
       transaction,
     );
 
-    await _saveTransactions();
+    _sortTransactions();
 
     return transaction;
   }
@@ -198,10 +210,32 @@ class TransactionService {
       );
     }
 
+    final response = await ApiService.post(
+      '/swaps',
+      {
+        'fromAsset': fromCurrency,
+        'toAsset': toCurrency,
+        'fromAmount': fromAmount,
+        'toAmount': toAmount,
+        'rate': exchangeRate,
+        'status': 'completed',
+      },
+    );
+
+    if (response['success'] != true ||
+        response['swap'] == null) {
+      throw StateError(
+        'Swap transaction could not be created.',
+      );
+    }
+
+    final String swapId =
+        response['swap']['swapId']?.toString() ??
+            'SWAP-${DateTime.now().millisecondsSinceEpoch}';
+
     final WalletTransaction transaction =
     WalletTransaction(
-      id:
-      'SWAP-${DateTime.now().millisecondsSinceEpoch}',
+      id: swapId,
       type: 'Swap',
       asset:
       '$fromCurrency → $toCurrency',
@@ -211,7 +245,9 @@ class TransactionService {
       value: toAmount,
       from: fromCurrency,
       to: toCurrency,
-      timestamp: DateTime.now(),
+      timestamp: _parseDate(
+        response['swap']['createdAt'],
+      ),
     );
 
     _transactions.insert(
@@ -219,7 +255,7 @@ class TransactionService {
       transaction,
     );
 
-    await _saveTransactions();
+    _sortTransactions();
 
     return transaction;
   }
@@ -230,9 +266,7 @@ class TransactionService {
 
   static Future<List<WalletTransaction>>
   getTransactions() async {
-    await initialize();
-
-    _sortTransactions();
+    await _refreshFromBackend();
 
     return List<WalletTransaction>.unmodifiable(
       _transactions,
@@ -247,13 +281,11 @@ class TransactionService {
   getRecentTransactions({
     int limit = 5,
   }) async {
-    await initialize();
+    await _refreshFromBackend();
 
     if (limit <= 0) {
       return <WalletTransaction>[];
     }
-
-    _sortTransactions();
 
     final int count =
     limit < _transactions.length
@@ -275,7 +307,7 @@ class TransactionService {
   getTransaction(
       String id,
       ) async {
-    await initialize();
+    await _refreshFromBackend();
 
     try {
       return _transactions.firstWhere(
@@ -291,55 +323,191 @@ class TransactionService {
   // DELETE
   // ============================================================
 
-  static Future<void>
-  deleteTransaction(
+  static Future<void> deleteTransaction(
       String id,
       ) async {
-    await initialize();
+    // Backend currently does not expose
+    // transaction delete endpoint.
 
     _transactions.removeWhere(
           (WalletTransaction transaction) =>
       transaction.id == id,
     );
-
-    await _saveTransactions();
   }
 
   // ============================================================
   // CLEAR
   // ============================================================
 
-  static Future<void>
-  clearTransactions() async {
-    await initialize();
+  static Future<void> clearTransactions() async {
+    // Backend currently does not expose
+    // clear-all transactions endpoint.
 
     _transactions.clear();
-
-    await _saveTransactions();
   }
 
   // ============================================================
-  // SAVE
+  // REFRESH FROM BACKEND
   // ============================================================
 
-  static Future<void>
-  _saveTransactions() async {
-    final SharedPreferences prefs =
-    await SharedPreferences.getInstance();
+  static Future<void> _refreshFromBackend() async {
+    try {
+      final response = await ApiService.get(
+        '/transactions',
+      );
 
-    final List<String> encoded =
-    _transactions.map(
-          (WalletTransaction transaction) {
-        return jsonEncode(
-          transaction.toMap(),
-        );
-      },
-    ).toList();
+      if (response['success'] != true) {
+        return;
+      }
 
-    await prefs.setStringList(
-      _storageKey,
-      encoded,
+      final List<dynamic> transactionsData =
+          response['transactions'] ?? [];
+
+      _transactions.clear();
+
+      for (final dynamic item in transactionsData) {
+        if (item is Map<String, dynamic>) {
+          _transactions.add(
+            _fromBackendMap(item),
+          );
+        }
+      }
+
+      _sortTransactions();
+
+      _initialized = true;
+    } catch (e) {
+      if (!_initialized) {
+        rethrow;
+      }
+    }
+  }
+
+  // ============================================================
+  // BACKEND MAP → FLUTTER MODEL
+  // ============================================================
+
+  static WalletTransaction _fromBackendMap(
+      Map<String, dynamic> data, {
+        double? valueOverride,
+        String? typeOverride,
+      }) {
+    final String type =
+        typeOverride ??
+            _convertTypeFromBackend(
+              data['type']?.toString() ?? '',
+            );
+
+    final double amount =
+    _toDouble(data['amount']);
+
+    final double value =
+        valueOverride ??
+            amount;
+
+    return WalletTransaction(
+      id: data['transactionId']?.toString() ??
+          data['_id']?.toString() ??
+          'TX-${DateTime.now().millisecondsSinceEpoch}',
+      type: type,
+      asset: data['asset']?.toString() ?? '',
+      network: data['network']?.toString() ?? '',
+      amount: amount,
+      value: value,
+      from: data['from']?.toString() ?? '',
+      to: data['to']?.toString() ?? '',
+      timestamp: _parseDate(
+        data['createdAt'],
+      ),
     );
+  }
+
+  // ============================================================
+  // TYPE CONVERSION
+  // ============================================================
+
+  static String _convertTypeToBackend(
+      String type,
+      ) {
+    switch (type.toLowerCase()) {
+      case 'sent':
+        return 'sent';
+
+      case 'received':
+        return 'received';
+
+      case 'p2p_received':
+        return 'p2p_received';
+
+      case 'swap':
+        return 'swap';
+
+      case 'deposit':
+        return 'received';
+
+      case 'withdrawal':
+        return 'sent';
+
+      default:
+        return 'received';
+    }
+  }
+
+  static String _convertTypeFromBackend(
+      String type,
+      ) {
+    switch (type.toLowerCase()) {
+      case 'sent':
+        return 'Sent';
+
+      case 'received':
+        return 'Received';
+
+      case 'p2p_received':
+        return 'Received';
+
+      case 'swap':
+        return 'Swap';
+
+      default:
+        return type;
+    }
+  }
+
+  // ============================================================
+  // DOUBLE PARSER
+  // ============================================================
+
+  static double _toDouble(
+      dynamic value,
+      ) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value?.toString() ?? '',
+    ) ??
+        0.0;
+  }
+
+  // ============================================================
+  // DATE PARSER
+  // ============================================================
+
+  static DateTime _parseDate(
+      dynamic value,
+      ) {
+    if (value is DateTime) {
+      return value;
+    }
+
+    final DateTime? parsed =
+    DateTime.tryParse(
+      value?.toString() ?? '',
+    );
+
+    return parsed ?? DateTime.now();
   }
 
   // ============================================================

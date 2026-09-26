@@ -1,77 +1,134 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/bank_account.dart';
+import 'api_service.dart';
 
 class BankService {
-  static const String _holderKey = 'bank_account_holder';
-  static const String _bankNameKey = 'bank_name';
-  static const String _accountNumberKey = 'bank_account_number';
-  static const String _ifscKey = 'bank_ifsc';
-  static const String _accountTypeKey = 'bank_account_type';
+  static BankAccount? _currentBankAccount;
 
   static Future<BankAccount?> getBankAccount() async {
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final response = await ApiService.get('/bank');
 
-    final holder = prefs.getString(_holderKey);
-    final bankName = prefs.getString(_bankNameKey);
-    final accountNumber = prefs.getString(_accountNumberKey);
-    final ifsc = prefs.getString(_ifscKey);
-    final accountType = prefs.getString(_accountTypeKey);
+      if (response['success'] != true) {
+        return null;
+      }
 
-    if (holder == null ||
-        bankName == null ||
-        accountNumber == null ||
-        ifsc == null ||
-        accountType == null) {
+      final List<dynamic> bankAccounts =
+          response['bankAccounts'] ?? [];
+
+      if (bankAccounts.isEmpty) {
+        _currentBankAccount = null;
+        return null;
+      }
+
+      final accountData = bankAccounts.first;
+
+      _currentBankAccount = BankAccount(
+        accountHolderName:
+        accountData['accountHolderName'] ?? '',
+        bankName:
+        accountData['bankName'] ?? '',
+        accountNumber:
+        accountData['accountNumber'] ?? '',
+        ifscCode:
+        accountData['ifscCode'] ?? '',
+        accountType:
+        accountData['accountType'] ?? 'Savings',
+      );
+
+      return _currentBankAccount;
+    } catch (e) {
       return null;
     }
-
-    return BankAccount(
-      accountHolderName: holder,
-      bankName: bankName,
-      accountNumber: accountNumber,
-      ifscCode: ifsc,
-      accountType: accountType,
-    );
   }
 
-  static Future<void> saveBankAccount(
-      BankAccount account) async {
-    final prefs = await SharedPreferences.getInstance();
+  static Future<bool> saveBankAccount(
+      BankAccount account,
+      ) async {
+    try {
+      final response = await ApiService.post(
+        '/bank',
+        {
+          'accountHolderName':
+          account.accountHolderName,
+          'bankName':
+          account.bankName,
+          'accountNumber':
+          account.accountNumber,
+          'ifscCode':
+          account.ifscCode,
+          'accountType':
+          account.accountType,
+          'isPrimary': true,
+        },
+      );
 
-    await prefs.setString(
-      _holderKey,
-      account.accountHolderName,
-    );
+      if (response['success'] != true) {
+        return false;
+      }
 
-    await prefs.setString(
-      _bankNameKey,
-      account.bankName,
-    );
+      _currentBankAccount = account;
 
-    await prefs.setString(
-      _accountNumberKey,
-      account.accountNumber,
-    );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
-    await prefs.setString(
-      _ifscKey,
-      account.ifscCode,
-    );
+  static Future<bool> updateBankAccount(
+      String bankAccountId,
+      BankAccount account,
+      ) async {
+    try {
+      final response = await ApiService.put(
+        '/bank/$bankAccountId',
+        {
+          'accountHolderName':
+          account.accountHolderName,
+          'bankName':
+          account.bankName,
+          'accountNumber':
+          account.accountNumber,
+          'ifscCode':
+          account.ifscCode,
+          'accountType':
+          account.accountType,
+          'isPrimary': true,
+        },
+      );
 
-    await prefs.setString(
-      _accountTypeKey,
-      account.accountType,
-    );
+      if (response['success'] != true) {
+        return false;
+      }
+
+      _currentBankAccount = account;
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<bool> deleteBankAccount(
+      String bankAccountId,
+      ) async {
+    try {
+      final response = await ApiService.delete(
+        '/bank/$bankAccountId',
+      );
+
+      if (response['success'] != true) {
+        return false;
+      }
+
+      _currentBankAccount = null;
+
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   static Future<void> clearBankAccount() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.remove(_holderKey);
-    await prefs.remove(_bankNameKey);
-    await prefs.remove(_accountNumberKey);
-    await prefs.remove(_ifscKey);
-    await prefs.remove(_accountTypeKey);
+    _currentBankAccount = null;
   }
 }
