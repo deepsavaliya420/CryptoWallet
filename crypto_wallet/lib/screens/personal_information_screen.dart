@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/user_service.dart';
 
@@ -49,6 +50,49 @@ class _PersonalInformationScreenState
     locationController.dispose();
     phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> copyWalletAddress(String walletAddress) async {
+    final String address = walletAddress.trim();
+
+    if (address.isEmpty) {
+      showMessage(
+        'Wallet address is not available.',
+        isError: true,
+      );
+      return;
+    }
+
+    await Clipboard.setData(
+      ClipboardData(text: address),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              Icons.check_circle_outline_rounded,
+              color: Colors.white,
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Wallet address copied to clipboard.',
+              ),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> saveChanges() async {
@@ -205,8 +249,7 @@ class _PersonalInformationScreenState
                   'Please log in to view your personal information.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: colorScheme
-                        .onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -381,8 +424,7 @@ class _PersonalInformationScreenState
           subtitle,
           style: TextStyle(
             fontSize: 11,
-            color:
-            colorScheme.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -507,6 +549,9 @@ class _PersonalInformationScreenState
     final colorScheme =
         Theme.of(context).colorScheme;
 
+    final String walletAddress =
+    user.walletAddress.trim();
+
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
@@ -539,13 +584,15 @@ class _PersonalInformationScreenState
                 .withValues(alpha: 0.4),
           ),
 
-          _AccountInfoTile(
-            icon:
-            Icons.account_balance_wallet_outlined,
-            title: 'Wallet Address',
-            value: user.walletAddress.isEmpty
+          _WalletAddressTile(
+            value: walletAddress.isEmpty
                 ? 'Not available'
-                : user.walletAddress,
+                : walletAddress,
+            onCopy: walletAddress.isEmpty
+                ? null
+                : () => copyWalletAddress(
+              walletAddress,
+            ),
           ),
         ],
       ),
@@ -609,8 +656,8 @@ class _PersonalInformationScreenState
           Icon(
             Icons.lock_outline_rounded,
             size: 18,
-            color: colorScheme
-                .onPrimaryContainer,
+            color:
+            colorScheme.onPrimaryContainer,
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -619,8 +666,8 @@ class _PersonalInformationScreenState
               style: TextStyle(
                 fontSize: 10.5,
                 height: 1.45,
-                color: colorScheme
-                    .onPrimaryContainer,
+                color:
+                colorScheme.onPrimaryContainer,
               ),
             ),
           ),
@@ -656,16 +703,16 @@ class _AccountInfoTile extends StatelessWidget {
             width: 43,
             height: 43,
             decoration: BoxDecoration(
-              color: colorScheme
-                  .primaryContainer,
+              color:
+              colorScheme.primaryContainer,
               borderRadius:
               BorderRadius.circular(13),
             ),
             child: Icon(
               icon,
               size: 21,
-              color: colorScheme
-                  .onPrimaryContainer,
+              color:
+              colorScheme.onPrimaryContainer,
             ),
           ),
 
@@ -696,6 +743,88 @@ class _AccountInfoTile extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WalletAddressTile extends StatelessWidget {
+  final String value;
+  final VoidCallback? onCopy;
+
+  const _WalletAddressTile({
+    required this.value,
+    required this.onCopy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color:
+              colorScheme.primaryContainer,
+              borderRadius:
+              BorderRadius.circular(13),
+            ),
+            child: Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 21,
+              color:
+              colorScheme.onPrimaryContainer,
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Wallet Address',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: colorScheme
+                        .onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 3,
+                  overflow:
+                  TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          IconButton(
+            onPressed: onCopy,
+            tooltip: 'Copy address',
+            icon: const Icon(
+              Icons.copy_rounded,
             ),
           ),
         ],

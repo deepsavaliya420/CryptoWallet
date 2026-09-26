@@ -16,10 +16,15 @@ class ChainVaultApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
       title: 'ChainVault',
+
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+
+      darkTheme: AppTheme.lightTheme,
+
+      themeMode: ThemeMode.light,
+
       home: const LoginScreen(),
     );
   }

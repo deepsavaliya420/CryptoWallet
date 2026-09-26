@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/user_service.dart';
 
@@ -101,10 +102,38 @@ class _WalletSettingsScreenState
   // COPY ADDRESS
   // ============================================================
 
-  void copyAddress() {
-    showMessage(
-      'Wallet address copied.',
-    );
+  Future<void> copyAddress() async {
+    final String address =
+        UserService.currentUser?.walletAddress.trim() ?? '';
+
+    if (address.isEmpty) {
+      showMessage(
+        'Wallet address is not available.',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      await Clipboard.setData(
+        ClipboardData(
+          text: address,
+        ),
+      );
+
+      if (!mounted) return;
+
+      showMessage(
+        'Wallet address copied.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      showMessage(
+        'Failed to copy wallet address.',
+        isError: true,
+      );
+    }
   }
 
   // ============================================================
