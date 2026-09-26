@@ -9,22 +9,27 @@ const generateRequestId = () => {
 
 const getReceiveRequests = async (req, res) => {
   try {
-    const receiveRequests = await ReceiveRequest.find({
-      userId: req.user.userId
-    }).sort({
-      createdAt: -1
-    });
+    const receiveRequests =
+      await ReceiveRequest.find({
+        userId: req.user.userId
+      }).sort({
+        createdAt: -1
+      });
 
     return res.status(200).json({
       success: true,
       receiveRequests
     });
   } catch (error) {
-    console.error("Get receive requests error:", error);
+    console.error(
+      "Get receive requests error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while fetching receive requests"
+      message:
+        "Server error while fetching receive requests"
     });
   }
 };
@@ -32,6 +37,8 @@ const getReceiveRequests = async (req, res) => {
 const createReceiveRequest = async (req, res) => {
   try {
     const {
+      requestedFrom,
+      requestedTo,
       asset,
       amount,
       walletAddress,
@@ -46,32 +53,76 @@ const createReceiveRequest = async (req, res) => {
       });
     }
 
-    const receiveRequest = await ReceiveRequest.create({
-      requestId: generateRequestId(),
-      userId: req.user.userId,
-      asset,
-      amount,
-      walletAddress: walletAddress || "",
-      network: network || "",
-      status: status || "pending"
-    });
+    const numericAmount = Number(amount);
+
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than zero"
+      });
+    }
+
+    const receiveRequest =
+      await ReceiveRequest.create({
+        requestId: generateRequestId(),
+
+        userId: req.user.userId,
+
+        requestedFrom:
+          requestedFrom || "",
+
+        requestedTo:
+          requestedTo ||
+          walletAddress ||
+          "",
+
+        asset:
+          asset
+            .toString()
+            .trim()
+            .toUpperCase(),
+
+        amount: numericAmount,
+
+        walletAddress:
+          walletAddress ||
+          requestedTo ||
+          "",
+
+        network:
+          network || "",
+
+        status:
+          status || "pending"
+      });
 
     return res.status(201).json({
       success: true,
-      message: "Receive request created successfully",
+      message:
+        "Receive request created successfully",
       receiveRequest
     });
   } catch (error) {
-    console.error("Create receive request error:", error);
+    console.error(
+      "Create receive request error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while creating receive request"
+      message:
+        "Server error while creating receive request"
     });
   }
 };
 
-const updateReceiveRequest = async (req, res) => {
+const updateReceiveRequest = async (
+  req,
+  res
+) => {
   try {
     const { requestId } = req.params;
     const { status } = req.body;
@@ -96,10 +147,11 @@ const updateReceiveRequest = async (req, res) => {
       });
     }
 
-    const receiveRequest = await ReceiveRequest.findOne({
-      requestId,
-      userId: req.user.userId
-    });
+    const receiveRequest =
+      await ReceiveRequest.findOne({
+        requestId,
+        userId: req.user.userId
+      });
 
     if (!receiveRequest) {
       return res.status(404).json({
@@ -110,24 +162,39 @@ const updateReceiveRequest = async (req, res) => {
 
     receiveRequest.status = status;
 
+    if (status === "completed") {
+      receiveRequest.completedAt =
+        new Date();
+    } else {
+      receiveRequest.completedAt = null;
+    }
+
     await receiveRequest.save();
 
     return res.status(200).json({
       success: true,
-      message: "Receive request updated successfully",
+      message:
+        "Receive request updated successfully",
       receiveRequest
     });
   } catch (error) {
-    console.error("Update receive request error:", error);
+    console.error(
+      "Update receive request error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while updating receive request"
+      message:
+        "Server error while updating receive request"
     });
   }
 };
 
-const deleteReceiveRequest = async (req, res) => {
+const deleteReceiveRequest = async (
+  req,
+  res
+) => {
   try {
     const { requestId } = req.params;
 
@@ -146,14 +213,47 @@ const deleteReceiveRequest = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Receive request deleted successfully"
+      message:
+        "Receive request deleted successfully"
     });
   } catch (error) {
-    console.error("Delete receive request error:", error);
+    console.error(
+      "Delete receive request error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while deleting receive request"
+      message:
+        "Server error while deleting receive request"
+    });
+  }
+};
+
+const clearReceiveRequests = async (
+  req,
+  res
+) => {
+  try {
+    await ReceiveRequest.deleteMany({
+      userId: req.user.userId
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "All receive requests deleted successfully"
+    });
+  } catch (error) {
+    console.error(
+      "Clear receive requests error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error while clearing receive requests"
     });
   }
 };
@@ -162,5 +262,6 @@ module.exports = {
   getReceiveRequests,
   createReceiveRequest,
   updateReceiveRequest,
-  deleteReceiveRequest
+  deleteReceiveRequest,
+  clearReceiveRequests
 };

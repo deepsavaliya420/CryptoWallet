@@ -7,10 +7,6 @@ class ReceiveRequestService {
 
   static bool _initialized = false;
 
-  // ============================================================
-  // INITIALIZE
-  // ============================================================
-
   static Future<void> initialize() async {
     if (_initialized) {
       return;
@@ -21,19 +17,11 @@ class ReceiveRequestService {
     _initialized = true;
   }
 
-  // ============================================================
-  // REFRESH
-  // ============================================================
-
   static Future<void> refresh() async {
     _initialized = false;
 
     await initialize();
   }
-
-  // ============================================================
-  // CREATE REQUEST
-  // ============================================================
 
   static Future<ReceiveRequest> createRequest({
     required String requestedFrom,
@@ -63,15 +51,30 @@ class ReceiveRequestService {
     final response = await ApiService.post(
       '/receive-requests',
       {
-        'asset': asset.trim().toUpperCase(),
+        'requestedFrom':
+        requestedFrom.trim(),
+
+        'requestedTo':
+        requestedTo.trim(),
+
+        'asset':
+        asset.trim().toUpperCase(),
+
         'amount': amount,
-        'walletAddress': requestedTo.trim(),
-        'network': network.trim(),
+
+        'walletAddress':
+        requestedTo.trim(),
+
+        'network':
+        network.trim(),
+
+        'status':
+        'pending',
       },
     );
 
     if (response['success'] != true ||
-        response['request'] == null) {
+        response['receiveRequest'] == null) {
       throw StateError(
         response['message']?.toString() ??
             'Receive request could not be created.',
@@ -80,13 +83,15 @@ class ReceiveRequestService {
 
     final Map<String, dynamic> data =
     Map<String, dynamic>.from(
-      response['request'],
+      response['receiveRequest'],
     );
 
     final ReceiveRequest request =
-    _fromBackendMap(
-      data,
-      requestedFrom: requestedFrom.trim(),
+    _fromBackendMap(data);
+
+    _requests.removeWhere(
+          (ReceiveRequest item) =>
+      item.id == request.id,
     );
 
     _requests.insert(
@@ -101,10 +106,6 @@ class ReceiveRequestService {
     return request;
   }
 
-  // ============================================================
-  // LOAD ALL REQUESTS
-  // ============================================================
-
   static Future<List<ReceiveRequest>>
   getRequests() async {
     await _refreshFromBackend();
@@ -113,10 +114,6 @@ class ReceiveRequestService {
       _requests,
     );
   }
-
-  // ============================================================
-  // LOAD PENDING REQUESTS
-  // ============================================================
 
   static Future<List<ReceiveRequest>>
   getPendingRequests() async {
@@ -143,11 +140,8 @@ class ReceiveRequestService {
     );
   }
 
-  // ============================================================
-  // GET ONE REQUEST
-  // ============================================================
-
-  static Future<ReceiveRequest?> getRequest(
+  static Future<ReceiveRequest?>
+  getRequest(
       String requestId,
       ) async {
     await _refreshFromBackend();
@@ -162,30 +156,53 @@ class ReceiveRequestService {
     }
   }
 
-  // ============================================================
-  // CANCEL REQUEST
-  // ============================================================
-
-  static Future<ReceiveRequest> cancelRequest(
+  static Future<ReceiveRequest>
+  cancelRequest(
       String requestId,
       ) async {
+    return _updateRequestStatus(
+      requestId: requestId,
+      status: 'cancelled',
+    );
+  }
+
+  static Future<ReceiveRequest>
+  completeRequest(
+      String requestId,
+      ) async {
+    return _updateRequestStatus(
+      requestId: requestId,
+      status: 'completed',
+    );
+  }
+
+  static Future<ReceiveRequest>
+  _updateRequestStatus({
+    required String requestId,
+    required String status,
+  }) async {
     final response = await ApiService.put(
-      '/receive-requests/$requestId/cancel',
-      {},
+      '/receive-requests/$requestId',
+      {
+        'status': status,
+      },
     );
 
     if (response['success'] != true ||
-        response['request'] == null) {
+        response['receiveRequest'] == null) {
       throw StateError(
         response['message']?.toString() ??
-            'Receive request could not be cancelled.',
+            'Receive request could not be updated.',
       );
     }
 
     final Map<String, dynamic> data =
     Map<String, dynamic>.from(
-      response['request'],
+      response['receiveRequest'],
     );
+
+    final ReceiveRequest updated =
+    _fromBackendMap(data);
 
     final int index =
     _requests.indexWhere(
@@ -193,106 +210,25 @@ class ReceiveRequestService {
       request.id == requestId,
     );
 
-    final ReceiveRequest oldRequest =
-    index == -1
-        ? _fromBackendMap(data)
-        : _requests[index];
-
-    final ReceiveRequest cancelled =
-    _fromBackendMap(
-      data,
-      requestedFrom:
-      oldRequest.requestedFrom,
-    );
-
     if (index == -1) {
       _requests.insert(
         0,
-        cancelled,
+        updated,
       );
     } else {
-      _requests[index] = cancelled;
+      _requests[index] = updated;
     }
 
     _sortRequests();
 
-    return cancelled;
+    return updated;
   }
-
-  // ============================================================
-  // COMPLETE REQUEST
-  // ============================================================
-  //
-  // Backend currently supports:
-  // pending
-  // completed
-  // cancelled
-  //
-  // Completing a request only changes its status.
-  // It does NOT automatically transfer wallet funds.
-  // ============================================================
-
-  static Future<ReceiveRequest> completeRequest(
-      String requestId,
-      ) async {
-    final response = await ApiService.put(
-      '/receive-requests/$requestId/complete',
-      {},
-    );
-
-    if (response['success'] != true ||
-        response['request'] == null) {
-      throw StateError(
-        response['message']?.toString() ??
-            'Receive request could not be completed.',
-      );
-    }
-
-    final Map<String, dynamic> data =
-    Map<String, dynamic>.from(
-      response['request'],
-    );
-
-    final int index =
-    _requests.indexWhere(
-          (ReceiveRequest request) =>
-      request.id == requestId,
-    );
-
-    final ReceiveRequest oldRequest =
-    index == -1
-        ? _fromBackendMap(data)
-        : _requests[index];
-
-    final ReceiveRequest completed =
-    _fromBackendMap(
-      data,
-      requestedFrom:
-      oldRequest.requestedFrom,
-    );
-
-    if (index == -1) {
-      _requests.insert(
-        0,
-        completed,
-      );
-    } else {
-      _requests[index] = completed;
-    }
-
-    _sortRequests();
-
-    return completed;
-  }
-
-  // ============================================================
-  // DELETE REQUEST
-  // ============================================================
 
   static Future<void> deleteRequest(
       String requestId,
       ) async {
-    final response = await ApiService.delete(
+    final response =
+    await ApiService.delete(
       '/receive-requests/$requestId',
     );
 
@@ -309,12 +245,9 @@ class ReceiveRequestService {
     );
   }
 
-  // ============================================================
-  // CLEAR ALL REQUESTS
-  // ============================================================
-
   static Future<void> clearRequests() async {
-    final response = await ApiService.delete(
+    final response =
+    await ApiService.delete(
       '/receive-requests',
     );
 
@@ -328,11 +261,8 @@ class ReceiveRequestService {
     _requests.clear();
   }
 
-  // ============================================================
-  // REFRESH FROM BACKEND
-  // ============================================================
-
-  static Future<void> _refreshFromBackend() async {
+  static Future<void>
+  _refreshFromBackend() async {
     final response = await ApiService.get(
       '/receive-requests',
     );
@@ -345,7 +275,7 @@ class ReceiveRequestService {
     }
 
     final List<dynamic> data =
-        response['requests'] ?? [];
+        response['receiveRequests'] ?? [];
 
     _requests.clear();
 
@@ -360,33 +290,44 @@ class ReceiveRequestService {
     _sortRequests();
   }
 
-  // ============================================================
-  // BACKEND MAP → FLUTTER MODEL
-  // ============================================================
-
   static ReceiveRequest _fromBackendMap(
-      Map<String, dynamic> data, {
-        String requestedFrom = '',
-      }) {
+      Map<String, dynamic> data,
+      ) {
     return ReceiveRequest(
       id:
       data['requestId']?.toString() ??
           data['_id']?.toString() ??
           'REQ-${DateTime.now().millisecondsSinceEpoch}',
+
       requestedFrom:
-      requestedFrom,
+      data['requestedFrom']?.toString() ??
+          '',
+
       requestedTo:
-      data['walletAddress']?.toString() ?? '',
+      data['requestedTo']?.toString() ??
+          data['walletAddress']?.toString() ??
+          '',
+
       asset:
-      data['asset']?.toString().toUpperCase() ?? '',
+      data['asset']
+          ?.toString()
+          .toUpperCase() ??
+          '',
+
       network:
-      data['network']?.toString() ?? '',
+      data['network']?.toString() ??
+          '',
+
       amount:
       _toDouble(data['amount']),
+
       status:
-      data['status']?.toString() ?? 'pending',
+      data['status']?.toString() ??
+          'pending',
+
       createdAt:
       _parseDate(data['createdAt']),
+
       completedAt:
       _parseNullableDate(
         data['completedAt'],
@@ -394,11 +335,9 @@ class ReceiveRequestService {
     );
   }
 
-  // ============================================================
-  // NUMBER PARSER
-  // ============================================================
-
-  static double _toDouble(dynamic value) {
+  static double _toDouble(
+      dynamic value,
+      ) {
     if (value is num) {
       return value.toDouble();
     }
@@ -409,21 +348,17 @@ class ReceiveRequestService {
         0.0;
   }
 
-  // ============================================================
-  // DATE PARSER
-  // ============================================================
-
-  static DateTime _parseDate(dynamic value) {
+  static DateTime _parseDate(
+      dynamic value,
+      ) {
     if (value is DateTime) {
       return value;
     }
 
-    final DateTime? parsed =
-    DateTime.tryParse(
+    return DateTime.tryParse(
       value?.toString() ?? '',
-    );
-
-    return parsed ?? DateTime.now();
+    ) ??
+        DateTime.now();
   }
 
   static DateTime? _parseNullableDate(
@@ -441,10 +376,6 @@ class ReceiveRequestService {
       value.toString(),
     );
   }
-
-  // ============================================================
-  // SORT
-  // ============================================================
 
   static void _sortRequests() {
     _requests.sort(

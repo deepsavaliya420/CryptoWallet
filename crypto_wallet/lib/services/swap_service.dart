@@ -9,10 +9,6 @@ class SwapService {
 
   static bool _initialized = false;
 
-  // ============================================================
-  // SUPPORTED CURRENCIES
-  // ============================================================
-
   static const List<String> currencies = [
     'USD',
     'INR',
@@ -24,11 +20,9 @@ class SwapService {
     'USDC',
     'BTC',
     'ETH',
+    'SOL',
+    'TRX',
   ];
-
-  // ============================================================
-  // SUPPORTED NETWORKS
-  // ============================================================
 
   static const List<String> networks = [
     'TRC-20',
@@ -39,31 +33,20 @@ class SwapService {
     'Bitcoin',
   ];
 
-  // ============================================================
-  // INTERNAL USD RATES
-  //
-  // 1 USD = rate units of the currency.
-  // ============================================================
-
   static const Map<String, double> _usdRates = {
     'USD': 1.0,
-
     'INR': 83.50,
     'EUR': 0.92,
     'GBP': 0.79,
     'AED': 3.6725,
     'JPY': 157.0,
-
     'USDT': 1.0,
     'USDC': 1.0,
-
     'BTC': 0.0000105,
     'ETH': 0.00030,
+    'SOL': 0.0060,
+    'TRX': 4.0,
   };
-
-  // ============================================================
-  // INITIALIZE
-  // ============================================================
 
   static Future<void> initialize() async {
     if (_initialized) {
@@ -71,7 +54,8 @@ class SwapService {
     }
 
     try {
-      final response = await ApiService.get(
+      final response =
+      await ApiService.get(
         '/swaps',
       );
 
@@ -104,19 +88,11 @@ class SwapService {
     }
   }
 
-  // ============================================================
-  // REFRESH
-  // ============================================================
-
   static Future<void> refresh() async {
     _initialized = false;
 
     await initialize();
   }
-
-  // ============================================================
-  // GET EXCHANGE RATE
-  // ============================================================
 
   static double getExchangeRate({
     required String fromCurrency,
@@ -149,10 +125,6 @@ class SwapService {
     return toRate / fromRate;
   }
 
-  // ============================================================
-  // CALCULATE RECEIVED AMOUNT
-  // ============================================================
-
   static double calculateReceivedAmount({
     required double fromAmount,
     required String fromCurrency,
@@ -177,10 +149,6 @@ class SwapService {
     return amountAfterFee * rate;
   }
 
-  // ============================================================
-  // CALCULATE FEE
-  // ============================================================
-
   static double calculateFee(
       double amount,
       ) {
@@ -192,18 +160,13 @@ class SwapService {
         (_swapFeePercent / 100);
   }
 
-  // ============================================================
-  // GET USD VALUE
-  // ============================================================
-
   static double getUsdValue({
     required double amount,
     required String currency,
   }) {
     final double? rate =
     _usdRates[
-    currency.toUpperCase()
-    ];
+    currency.toUpperCase()];
 
     if (rate == null) {
       throw StateError(
@@ -215,10 +178,6 @@ class SwapService {
     return amount / rate;
   }
 
-  // ============================================================
-  // GET MAX SWAPPABLE USD
-  // ============================================================
-
   static double getMaxSwapAmountUsd({
     required double totalUsdBalance,
   }) {
@@ -229,11 +188,8 @@ class SwapService {
     return totalUsdBalance;
   }
 
-  // ============================================================
-  // CREATE / EXECUTE SWAP
-  // ============================================================
-
-  static Future<SwapTransaction> createSwap({
+  static Future<SwapTransaction>
+  createSwap({
     required String fromCurrency,
     required String fromNetwork,
     required String toCurrency,
@@ -303,7 +259,8 @@ class SwapService {
       toCurrency: to,
     );
 
-    final response = await ApiService.post(
+    final response =
+    await ApiService.post(
       '/swaps',
       {
         'fromAsset': from,
@@ -323,7 +280,8 @@ class SwapService {
       );
     }
 
-    final Map<String, dynamic> swapData =
+    final Map<String, dynamic>
+    swapData =
     Map<String, dynamic>.from(
       response['swap'],
     );
@@ -331,25 +289,50 @@ class SwapService {
     final SwapTransaction swap =
     SwapTransaction(
       id:
-      swapData['swapId']?.toString() ??
+      swapData['swapId']
+          ?.toString() ??
+          swapData['_id']
+              ?.toString() ??
           'SWAP-${DateTime.now().millisecondsSinceEpoch}',
+
       fromCurrency: from,
-      fromNetwork: fromNetwork,
+
+      fromNetwork:
+      fromNetwork,
+
       toCurrency: to,
-      toNetwork: toNetwork,
-      fromAmount: fromAmount,
-      toAmount: received,
-      exchangeRate: rate,
-      fee: fee,
+
+      toNetwork:
+      toNetwork,
+
+      fromAmount:
+      fromAmount,
+
+      toAmount:
+      received,
+
+      exchangeRate:
+      rate,
+
+      fee:
+      fee,
+
       status:
       _convertStatus(
-        swapData['status']?.toString() ??
+        swapData['status']
+            ?.toString() ??
             'completed',
       ),
+
       timestamp:
       _parseDate(
         swapData['createdAt'],
       ),
+    );
+
+    _swaps.removeWhere(
+          (SwapTransaction item) =>
+      item.id == swap.id,
     );
 
     _swaps.insert(
@@ -362,10 +345,6 @@ class SwapService {
     return swap;
   }
 
-  // ============================================================
-  // LOAD ALL SWAPS
-  // ============================================================
-
   static Future<List<SwapTransaction>>
   getSwaps() async {
     await _refreshFromBackend();
@@ -374,10 +353,6 @@ class SwapService {
       _swaps,
     );
   }
-
-  // ============================================================
-  // RECENT SWAPS
-  // ============================================================
 
   static Future<List<SwapTransaction>>
   getRecentSwaps({
@@ -399,11 +374,8 @@ class SwapService {
     );
   }
 
-  // ============================================================
-  // FIND ONE SWAP
-  // ============================================================
-
-  static Future<SwapTransaction?> getSwap(
+  static Future<SwapTransaction?>
+  getSwap(
       String id,
       ) async {
     await _refreshFromBackend();
@@ -418,40 +390,24 @@ class SwapService {
     }
   }
 
-  // ============================================================
-  // DELETE SWAP
-  // ============================================================
-
   static Future<void> deleteSwap(
       String id,
       ) async {
-    // Backend currently does not have
-    // a DELETE /swaps/:id endpoint.
-
     _swaps.removeWhere(
           (SwapTransaction swap) =>
       swap.id == id,
     );
   }
 
-  // ============================================================
-  // CLEAR HISTORY
-  // ============================================================
-
   static Future<void> clearHistory() async {
-    // Backend currently does not have
-    // a DELETE-all-swaps endpoint.
-
     _swaps.clear();
   }
 
-  // ============================================================
-  // REFRESH FROM BACKEND
-  // ============================================================
-
-  static Future<void> _refreshFromBackend() async {
+  static Future<void>
+  _refreshFromBackend() async {
     try {
-      final response = await ApiService.get(
+      final response =
+      await ApiService.get(
         '/swaps',
       );
 
@@ -482,18 +438,19 @@ class SwapService {
     }
   }
 
-  // ============================================================
-  // BACKEND MAP → FLUTTER MODEL
-  // ============================================================
-
-  static SwapTransaction _fromBackendMap(
+  static SwapTransaction
+  _fromBackendMap(
       Map<String, dynamic> data,
       ) {
     final String fromCurrency =
-        data['fromAsset']?.toString() ?? '';
+        data['fromAsset']
+            ?.toString() ??
+            '';
 
     final String toCurrency =
-        data['toAsset']?.toString() ?? '';
+        data['toAsset']
+            ?.toString() ??
+            '';
 
     final double fromAmount =
     _toDouble(
@@ -511,44 +468,59 @@ class SwapService {
     );
 
     final double fee =
-    calculateFee(fromAmount);
+    calculateFee(
+      fromAmount,
+    );
 
     return SwapTransaction(
       id:
-      data['swapId']?.toString() ??
-          data['_id']?.toString() ??
+      data['swapId']
+          ?.toString() ??
+          data['_id']
+              ?.toString() ??
           'SWAP-${DateTime.now().millisecondsSinceEpoch}',
+
       fromCurrency:
       fromCurrency,
+
       fromNetwork:
-      '',
+      data['fromNetwork']
+          ?.toString() ??
+          '',
+
       toCurrency:
       toCurrency,
+
       toNetwork:
-      '',
+      data['toNetwork']
+          ?.toString() ??
+          '',
+
       fromAmount:
       fromAmount,
+
       toAmount:
       toAmount,
+
       exchangeRate:
       rate,
+
       fee:
       fee,
+
       status:
       _convertStatus(
-        data['status']?.toString() ??
+        data['status']
+            ?.toString() ??
             'completed',
       ),
+
       timestamp:
       _parseDate(
         data['createdAt'],
       ),
     );
   }
-
-  // ============================================================
-  // STATUS
-  // ============================================================
 
   static String _convertStatus(
       String status,
@@ -568,10 +540,6 @@ class SwapService {
     }
   }
 
-  // ============================================================
-  // NUMBER PARSER
-  // ============================================================
-
   static double _toDouble(
       dynamic value,
       ) {
@@ -585,10 +553,6 @@ class SwapService {
         0.0;
   }
 
-  // ============================================================
-  // DATE PARSER
-  // ============================================================
-
   static DateTime _parseDate(
       dynamic value,
       ) {
@@ -596,17 +560,11 @@ class SwapService {
       return value;
     }
 
-    final DateTime? parsed =
-    DateTime.tryParse(
+    return DateTime.tryParse(
       value?.toString() ?? '',
-    );
-
-    return parsed ?? DateTime.now();
+    ) ??
+        DateTime.now();
   }
-
-  // ============================================================
-  // SORT
-  // ============================================================
 
   static void _sortSwaps() {
     _swaps.sort(

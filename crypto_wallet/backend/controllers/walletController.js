@@ -1,5 +1,20 @@
 const Wallet = require("../models/Wallet");
 
+const SUPPORTED_ASSETS = [
+  "ETH",
+  "USDT",
+  "SOL",
+  "TRX",
+  "USD",
+  "INR",
+  "EUR",
+  "GBP",
+  "AED",
+  "JPY",
+  "USDC",
+  "BTC"
+];
+
 const getWallet = async (req, res) => {
   try {
     const wallet = await Wallet.findOne({
@@ -38,19 +53,25 @@ const updateBalance = async (req, res) => {
       });
     }
 
-    const supportedAssets = [
-      "ETH",
-      "USDT",
-      "SOL",
-      "TRX",
-      "INR",
-      "USD"
-    ];
+    const normalizedAsset =
+      asset.toString().trim().toUpperCase();
 
-    if (!supportedAssets.includes(asset)) {
+    const numericAmount = Number(amount);
+
+    if (!SUPPORTED_ASSETS.includes(normalizedAsset)) {
       return res.status(400).json({
         success: false,
         message: "Unsupported asset"
+      });
+    }
+
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount < 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be a valid non-negative number"
       });
     }
 
@@ -65,7 +86,7 @@ const updateBalance = async (req, res) => {
       });
     }
 
-    wallet.balances[asset] = amount;
+    wallet.balances[normalizedAsset] = numericAmount;
     wallet.updatedAt = new Date();
 
     await wallet.save();
@@ -80,7 +101,7 @@ const updateBalance = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Server error while updating wallet"
+      message: "Server error while updating wallet balance"
     });
   }
 };

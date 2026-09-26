@@ -1,61 +1,78 @@
 const mongoose = require("mongoose");
 
-const receiveRequestSchema = new mongoose.Schema(
-  {
-    requestId: {
-      type: String,
-      required: true,
-      unique: true
-    },
+const receiveRequestSchema =
+  new mongoose.Schema(
+    {
+      requestId: {
+        type: String,
+        required: true,
+        unique: true
+      },
 
-    userId: {
-      type: String,
-      required: true
-    },
+      userId: {
+        type: String,
+        required: true
+      },
 
-    asset: {
-      type: String,
-      required: true
-    },
+      requestedFrom: {
+        type: String,
+        default: ""
+      },
 
-    amount: {
-      type: Number,
-      required: true
-    },
+      requestedTo: {
+        type: String,
+        default: ""
+      },
 
-    walletAddress: {
-      type: String,
-      default: ""
-    },
+      asset: {
+        type: String,
+        required: true
+      },
 
-    network: {
-      type: String,
-      default: ""
-    },
+      amount: {
+        type: Number,
+        required: true
+      },
 
-    status: {
-      type: String,
-      enum: [
-        "pending",
-        "completed",
-        "cancelled"
-      ],
-      default: "pending"
-    },
+      walletAddress: {
+        type: String,
+        default: ""
+      },
 
-    createdAt: {
-      type: Date,
-      default: Date.now
+      network: {
+        type: String,
+        default: ""
+      },
+
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "completed",
+          "cancelled"
+        ],
+        default: "pending"
+      },
+
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+
+      completedAt: {
+        type: Date,
+        default: null
+      }
+    },
+    {
+      collection: "receive_requests"
     }
-  },
-  {
-    collection: "receive_requests"
-  }
-);
+  );
 
-const ReceiveRequest = mongoose.model(
-  "ReceiveRequest",
-  receiveRequestSchema
-);
+const ReceiveRequest =
+  mongoose.model(
+    "ReceiveRequest",
+    receiveRequestSchema
+  );
 
 module.exports = ReceiveRequest;
