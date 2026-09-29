@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/asset.dart';
 import '../models/transaction.dart';
+import '../services/notification_service.dart';
 import '../services/transaction_service.dart';
 import '../services/wallet_service.dart';
 import '../widgets/action_card.dart';
@@ -37,6 +40,10 @@ class _HomeScreenState
 
   bool isLoading = true;
 
+  bool hasUnreadNotifications = false;
+
+  Timer? _notificationTimer;
+
   @override
   void initState() {
     super.initState();
@@ -44,11 +51,15 @@ class _HomeScreenState
     WidgetsBinding.instance.addObserver(this);
 
     _loadWalletData();
+
+    _startNotificationPolling();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+
+    _notificationTimer?.cancel();
 
     super.dispose();
   }
@@ -59,8 +70,59 @@ class _HomeScreenState
       ) {
     if (state == AppLifecycleState.resumed) {
       _loadWalletData();
+      _checkNotifications();
+      _startNotificationPolling();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _notificationTimer?.cancel();
     }
   }
+
+  // ============================================================
+  // NOTIFICATION POLLING
+  // ============================================================
+
+  void _startNotificationPolling() {
+    _notificationTimer?.cancel();
+
+    _checkNotifications();
+
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 5),
+          (_) {
+        if (mounted) {
+          _checkNotifications();
+        }
+      },
+    );
+  }
+
+  Future<void> _checkNotifications() async {
+    try {
+      await NotificationService.getNotifications();
+
+      if (!mounted) {
+        return;
+      }
+
+      final bool unread =
+          NotificationService.unreadCount > 0;
+
+      if (hasUnreadNotifications != unread) {
+        setState(() {
+          hasUnreadNotifications = unread;
+        });
+      }
+    } catch (_) {
+      // Do not disturb the wallet UI if notification
+      // refreshing temporarily fails.
+    }
+  }
+
+  // ============================================================
+  // WALLET DATA
+  // ============================================================
 
   Future<void> _loadWalletData() async {
     try {
@@ -137,7 +199,9 @@ class _HomeScreenState
     }
 
     if (result == true) {
-      _showMessage('Send completed successfully.');
+      _showMessage(
+        'Send completed successfully.',
+      );
     }
   }
 
@@ -162,7 +226,9 @@ class _HomeScreenState
     }
 
     if (result == true) {
-      _showMessage('Receive completed successfully.');
+      _showMessage(
+        'Receive completed successfully.',
+      );
     }
   }
 
@@ -185,7 +251,9 @@ class _HomeScreenState
     }
 
     if (result == true) {
-      _showMessage('Swap completed successfully.');
+      _showMessage(
+        'Swap completed successfully.',
+      );
     }
   }
 
@@ -234,14 +302,66 @@ class _HomeScreenState
     await _loadWalletData();
   }
 
+  // ============================================================
+  // OPEN NOTIFICATIONS
+  // ============================================================
+
   Future<void> _openNotifications() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const NotificationsScreen(),
-      ),
-    );
+    try {
+      if (hasUnreadNotifications) {
+        await NotificationService.markAllAsRead();
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        hasUnreadNotifications = false;
+      });
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+          const NotificationsScreen(),
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await _checkNotifications();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        _cleanError(error),
+        isError: true,
+      );
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+          const NotificationsScreen(),
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await _checkNotifications();
+    }
   }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
 
   void _showMessage(
       String message, {
@@ -251,7 +371,8 @@ class _HomeScreenState
       return;
     }
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -270,7 +391,8 @@ class _HomeScreenState
             ),
           ],
         ),
-        backgroundColor: isError ? Colors.red.shade700 : null,
+        backgroundColor:
+        isError ? Colors.red.shade700 : null,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
@@ -288,10 +410,13 @@ class _HomeScreenState
     return '\$${balance.toStringAsFixed(2)}';
   }
 
-  String _formatTransactionTime(DateTime timestamp) {
+  String _formatTransactionTime(
+      DateTime timestamp,
+      ) {
     final DateTime now = DateTime.now();
 
-    final Duration difference = now.difference(timestamp);
+    final Duration difference =
+    now.difference(timestamp);
 
     if (difference.inMinutes < 1) {
       return 'Just now';
@@ -327,20 +452,27 @@ class _HomeScreenState
     return '$hour:$minute $period';
   }
 
+  // ============================================================
+  // HEADER
+  // ============================================================
+
   Widget _buildHeader(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Row(
       children: [
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
             children: [
               Text(
                 'Welcome back 👋',
                 style: TextStyle(
                   fontSize: 13,
-                  color: colorScheme.onSurfaceVariant,
+                  color:
+                  colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -357,12 +489,11 @@ class _HomeScreenState
             ],
           ),
         ),
-        _headerButton(
-          context,
-          icon: Icons.notifications_none_rounded,
-          onTap: _openNotifications,
-        ),
+
+        _notificationHeaderButton(context),
+
         const SizedBox(width: 9),
+
         _headerButton(
           context,
           icon: Icons.person_outline_rounded,
@@ -372,17 +503,72 @@ class _HomeScreenState
     );
   }
 
+  Widget _notificationHeaderButton(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Material(
+      color:
+      colorScheme.surfaceContainerHighest
+          .withValues(alpha: 0.7),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: _openNotifications,
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: Icon(
+                  Icons.notifications_none_rounded,
+                  size: 21,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+
+              if (hasUnreadNotifications)
+                Positioned(
+                  top: 7,
+                  right: 7,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade600,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color:
+                        colorScheme
+                            .surfaceContainerHighest,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _headerButton(
       BuildContext context, {
         required IconData icon,
         required VoidCallback onTap,
       }) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Material(
-      color: colorScheme.surfaceContainerHighest.withValues(
-        alpha: 0.7,
-      ),
+      color:
+      colorScheme.surfaceContainerHighest
+          .withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -400,8 +586,15 @@ class _HomeScreenState
     );
   }
 
-  Widget _buildBalanceSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  // ============================================================
+  // BALANCE
+  // ============================================================
+
+  Widget _buildBalanceSection(
+      BuildContext context,
+      ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Container(
       width: double.infinity,
@@ -413,13 +606,15 @@ class _HomeScreenState
           end: Alignment.bottomRight,
           colors: [
             colorScheme.primary,
-            colorScheme.primary.withValues(alpha: 0.84),
+            colorScheme.primary
+                .withValues(alpha: 0.84),
             colorScheme.secondary,
           ],
         ),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.22),
+            color: colorScheme.primary
+                .withValues(alpha: 0.22),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -436,7 +631,13 @@ class _HomeScreenState
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  // ============================================================
+  // QUICK ACTIONS
+  // ============================================================
+
+  Widget _buildQuickActions(
+      BuildContext context,
+      ) {
     return Row(
       children: [
         Expanded(
@@ -466,9 +667,13 @@ class _HomeScreenState
     );
   }
 
-  Widget _buildAssetsSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  // ============================================================
+  // ASSETS
+  // ============================================================
 
+  Widget _buildAssetsSection(
+      BuildContext context,
+      ) {
     return Column(
       children: [
         SectionTitle(
@@ -477,18 +682,22 @@ class _HomeScreenState
           onAction: _openAssets,
         ),
         const SizedBox(height: 11),
+
         if (assets.isEmpty)
           _emptyCard(
             context,
-            icon: Icons.account_balance_wallet_outlined,
+            icon:
+            Icons.account_balance_wallet_outlined,
             title: 'No assets yet',
             message:
             'Your wallet assets will appear here.',
           ),
+
         ...assets.take(4).map(
               (Asset asset) {
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding:
+              const EdgeInsets.only(bottom: 10),
               child: AssetCard(
                 asset: asset,
               ),
@@ -499,7 +708,13 @@ class _HomeScreenState
     );
   }
 
-  Widget _buildTransactionsSection(BuildContext context) {
+  // ============================================================
+  // TRANSACTIONS
+  // ============================================================
+
+  Widget _buildTransactionsSection(
+      BuildContext context,
+      ) {
     return Column(
       children: [
         SectionTitle(
@@ -508,6 +723,7 @@ class _HomeScreenState
           onAction: _openSwapHistory,
         ),
         const SizedBox(height: 11),
+
         if (transactions.isEmpty)
           _emptyCard(
             context,
@@ -516,14 +732,17 @@ class _HomeScreenState
             message:
             'Your latest wallet activity will appear here.',
           ),
+
         ...transactions.map(
               (WalletTransaction transaction) {
             return _transactionCard(transaction);
           },
         ),
+
         if (transactions.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 3),
+            padding:
+            const EdgeInsets.only(top: 3),
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -532,7 +751,9 @@ class _HomeScreenState
                   Icons.history_rounded,
                   size: 19,
                 ),
-                label: const Text('View Transaction History'),
+                label: const Text(
+                  'View Transaction History',
+                ),
               ),
             ),
           ),
@@ -540,13 +761,18 @@ class _HomeScreenState
     );
   }
 
+  // ============================================================
+  // EMPTY CARD
+  // ============================================================
+
   Widget _emptyCard(
       BuildContext context, {
         required IconData icon,
         required String title,
         required String message,
       }) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Container(
       width: double.infinity,
@@ -559,9 +785,8 @@ class _HomeScreenState
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(
-            alpha: 0.35,
-          ),
+          color: colorScheme.outlineVariant
+              .withValues(alpha: 0.35),
         ),
       ),
       child: Column(
@@ -593,10 +818,15 @@ class _HomeScreenState
     );
   }
 
+  // ============================================================
+  // TRANSACTION CARD
+  // ============================================================
+
   Widget _transactionCard(
       WalletTransaction transaction,
       ) {
-    final String type = transaction.type.toLowerCase();
+    final String type =
+    transaction.type.toLowerCase();
 
     final bool isReceive =
         type == 'received' ||
@@ -616,7 +846,8 @@ class _HomeScreenState
     final IconData icon;
 
     if (isSwap) {
-      color = Theme.of(context).colorScheme.primary;
+      color =
+          Theme.of(context).colorScheme.primary;
       icon = Icons.swap_horiz_rounded;
     } else if (isReceive || isDeposit) {
       color = Colors.green;
@@ -634,13 +865,16 @@ class _HomeScreenState
 
     if (isSwap) {
       amountText =
-      '${transaction.amount.toStringAsFixed(2)} ${transaction.asset}';
+      '${transaction.amount.toStringAsFixed(2)} '
+          '${transaction.asset}';
     } else if (isDeposit) {
       amountText =
-      '+${transaction.amount.toStringAsFixed(2)} ${transaction.asset}';
+      '+${transaction.amount.toStringAsFixed(2)} '
+          '${transaction.asset}';
     } else if (isWithdrawal) {
       amountText =
-      '-${transaction.amount.toStringAsFixed(2)} ${transaction.asset}';
+      '-${transaction.amount.toStringAsFixed(2)} '
+          '${transaction.asset}';
     } else {
       amountText =
       '${isReceive ? '+' : '-'}'
@@ -648,7 +882,8 @@ class _HomeScreenState
           '${transaction.asset}';
     }
 
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -657,9 +892,8 @@ class _HomeScreenState
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(19),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(
-            alpha: 0.38,
-          ),
+          color: colorScheme.outlineVariant
+              .withValues(alpha: 0.38),
         ),
       ),
       child: Row(
@@ -669,7 +903,8 @@ class _HomeScreenState
             height: 46,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius:
+              BorderRadius.circular(14),
             ),
             child: Icon(
               icon,
@@ -677,15 +912,19 @@ class _HomeScreenState
               size: 22,
             ),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
                 Text(
                   transaction.type,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                  TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -694,12 +933,15 @@ class _HomeScreenState
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${transaction.asset} • ${transaction.network}',
+                  '${transaction.asset} • '
+                      '${transaction.network}',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                  TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11,
-                    color: colorScheme.onSurfaceVariant,
+                    color:
+                    colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -709,19 +951,23 @@ class _HomeScreenState
                   ),
                   style: TextStyle(
                     fontSize: 10.5,
-                    color: colorScheme.onSurfaceVariant,
+                    color:
+                    colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
+
           const SizedBox(width: 8),
+
           Flexible(
             child: Text(
               amountText,
               textAlign: TextAlign.end,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              overflow:
+              TextOverflow.ellipsis,
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 12.5,
@@ -734,9 +980,14 @@ class _HomeScreenState
     );
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Scaffold(
       body: isLoading
@@ -751,7 +1002,8 @@ class _HomeScreenState
           child: ListView(
             physics:
             const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+            const EdgeInsets.fromLTRB(
               18,
               12,
               18,
@@ -780,16 +1032,21 @@ class _HomeScreenState
 
               const SizedBox(height: 28),
 
-              _buildTransactionsSection(context),
+              _buildTransactionsSection(
+                context,
+              ),
 
               const SizedBox(height: 10),
             ],
           ),
         ),
       ),
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
-        onDestinationSelected: (int index) {
+        onDestinationSelected: (
+            int index,
+            ) {
           switch (index) {
             case 0:
               break;

@@ -86,7 +86,8 @@ class TransactionService {
     if (response['success'] != true ||
         response['transaction'] == null) {
       throw StateError(
-        'Transaction could not be created.',
+        response['message']?.toString() ??
+            'Transaction could not be created.',
       );
     }
 
@@ -210,44 +211,56 @@ class TransactionService {
       );
     }
 
+    // IMPORTANT:
+    // SwapService.createSwap() already creates the actual
+    // swap record using POST /swaps.
+    //
+    // This method must create only the transaction-history
+    // record using POST /transactions.
+    //
+    // Previously this method was also calling POST /swaps,
+    // which created a duplicate swap record.
+
     final response = await ApiService.post(
-      '/swaps',
+      '/transactions',
       {
-        'fromAsset': fromCurrency,
-        'toAsset': toCurrency,
-        'fromAmount': fromAmount,
-        'toAmount': toAmount,
-        'rate': exchangeRate,
+        'type': 'swap',
+        'asset':
+        '$fromCurrency → $toCurrency',
+        'amount': fromAmount,
+        'from': fromCurrency,
+        'to': toCurrency,
         'status': 'completed',
+        'network':
+        '$fromNetwork → $toNetwork',
+        'description':
+        'Swap $fromCurrency to $toCurrency',
       },
     );
 
     if (response['success'] != true ||
-        response['swap'] == null) {
+        response['transaction'] == null) {
       throw StateError(
-        'Swap transaction could not be created.',
+        response['message']?.toString() ??
+            'Swap transaction could not be created.',
       );
     }
 
-    final String swapId =
-        response['swap']['swapId']?.toString() ??
-            'SWAP-${DateTime.now().millisecondsSinceEpoch}';
+    final Map<String, dynamic> transactionData =
+    Map<String, dynamic>.from(
+      response['transaction'],
+    );
 
     final WalletTransaction transaction =
-    WalletTransaction(
-      id: swapId,
-      type: 'Swap',
-      asset:
-      '$fromCurrency → $toCurrency',
-      network:
-      '$fromNetwork → $toNetwork',
-      amount: fromAmount,
-      value: toAmount,
-      from: fromCurrency,
-      to: toCurrency,
-      timestamp: _parseDate(
-        response['swap']['createdAt'],
-      ),
+    _fromBackendMap(
+      transactionData,
+      valueOverride: toAmount,
+      typeOverride: 'Swap',
+    );
+
+    _transactions.removeWhere(
+          (WalletTransaction item) =>
+      item.id == transaction.id,
     );
 
     _transactions.insert(
@@ -402,20 +415,24 @@ class TransactionService {
     _toDouble(data['amount']);
 
     final double value =
-        valueOverride ??
-            amount;
+        valueOverride ?? amount;
 
     return WalletTransaction(
-      id: data['transactionId']?.toString() ??
+      id:
+      data['transactionId']?.toString() ??
           data['_id']?.toString() ??
           'TX-${DateTime.now().millisecondsSinceEpoch}',
       type: type,
-      asset: data['asset']?.toString() ?? '',
-      network: data['network']?.toString() ?? '',
+      asset:
+      data['asset']?.toString() ?? '',
+      network:
+      data['network']?.toString() ?? '',
       amount: amount,
       value: value,
-      from: data['from']?.toString() ?? '',
-      to: data['to']?.toString() ?? '',
+      from:
+      data['from']?.toString() ?? '',
+      to:
+      data['to']?.toString() ?? '',
       timestamp: _parseDate(
         data['createdAt'],
       ),

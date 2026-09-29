@@ -182,6 +182,11 @@ class _SwapScreenState extends State<SwapScreen> {
   // ============================================================
 
   Future<void> _performSwap() async {
+    // Prevent duplicate submission immediately.
+    if (_isSwapping) {
+      return;
+    }
+
     final amount = double.tryParse(
       _amountController.text.trim(),
     );
@@ -247,20 +252,32 @@ class _SwapScreenState extends State<SwapScreen> {
       }
     }
 
+    if (!mounted) return;
+
+    // ==========================================================
+    // IMPORTANT BUG FIX
+    // Lock the swap BEFORE opening confirmation.
+    // This prevents multiple confirmation/submission attempts.
+    // ==========================================================
+
+    setState(() {
+      _isSwapping = true;
+    });
+
     final confirmed = await _showConfirmation(
       amount,
       sourceUsdValue,
     );
 
     if (confirmed != true) {
+      if (mounted) {
+        setState(() {
+          _isSwapping = false;
+        });
+      }
+
       return;
     }
-
-    if (!mounted) return;
-
-    setState(() {
-      _isSwapping = true;
-    });
 
     try {
       await WalletService.subtractCurrencyByUsdValue(
@@ -281,6 +298,8 @@ class _SwapScreenState extends State<SwapScreen> {
         fromAmount: amount,
       );
 
+      // Keep transaction creation.
+      // This is used by the transaction/recent activity system.
       await TransactionService.createSwapTransaction(
         fromCurrency: swap.fromCurrency,
         fromNetwork: swap.fromNetwork,
@@ -552,9 +571,7 @@ class _SwapScreenState extends State<SwapScreen> {
                   size: 48,
                 ),
               ),
-
               const SizedBox(height: 16),
-
               const Text(
                 'Swap Completed',
                 style: TextStyle(
@@ -563,9 +580,7 @@ class _SwapScreenState extends State<SwapScreen> {
                   FontWeight.w800,
                 ),
               ),
-
               const SizedBox(height: 6),
-
               Text(
                 'Your wallet exchange was completed successfully.',
                 textAlign: TextAlign.center,
@@ -575,9 +590,7 @@ class _SwapScreenState extends State<SwapScreen> {
                       .onSurfaceVariant,
                 ),
               ),
-
               const SizedBox(height: 20),
-
               _completedAmountCard(
                 context: dialogContext,
                 label: 'You Swapped',
@@ -588,17 +601,13 @@ class _SwapScreenState extends State<SwapScreen> {
                 icon:
                 Icons.arrow_upward_rounded,
               ),
-
               const SizedBox(height: 8),
-
               Icon(
                 Icons
                     .keyboard_double_arrow_down_rounded,
                 color: colorScheme.primary,
               ),
-
               const SizedBox(height: 8),
-
               _completedAmountCard(
                 context: dialogContext,
                 label: 'You Received',
@@ -610,9 +619,7 @@ class _SwapScreenState extends State<SwapScreen> {
                 Icons.arrow_downward_rounded,
                 highlighted: true,
               ),
-
               const SizedBox(height: 16),
-
               Container(
                 width: double.infinity,
                 padding:
@@ -647,9 +654,7 @@ class _SwapScreenState extends State<SwapScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 10),
-
               Text(
                 'ID: $id',
                 textAlign: TextAlign.center,
@@ -1165,17 +1170,11 @@ class _SwapScreenState extends State<SwapScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
           currencyDropdown,
-
           const SizedBox(height: 10),
-
           networkDropdown,
-
           const SizedBox(height: 12),
-
           child,
         ],
       ),
@@ -1222,9 +1221,7 @@ class _SwapScreenState extends State<SwapScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
           _previewRow(
             'Exchange rate',
             _exchangeRate == 0
@@ -1233,9 +1230,7 @@ class _SwapScreenState extends State<SwapScreen> {
                 '${_formatNumber(_exchangeRate)} '
                 '$_toCurrency',
           ),
-
           const SizedBox(height: 10),
-
           _previewRow(
             'You send',
             _amountController.text.isEmpty
@@ -1243,9 +1238,7 @@ class _SwapScreenState extends State<SwapScreen> {
                 : '${_amountController.text} '
                 '$_fromCurrency',
           ),
-
           const SizedBox(height: 10),
-
           _previewRow(
             'You receive',
             '${_formatNumber(_receivedAmount)} '
@@ -1254,16 +1247,12 @@ class _SwapScreenState extends State<SwapScreen> {
             valueColor:
             colorScheme.primary,
           ),
-
           const SizedBox(height: 10),
-
           _previewRow(
             'Network',
             '$_fromNetwork → $_toNetwork',
           ),
-
           const SizedBox(height: 10),
-
           _previewRow(
             'Fee',
             '${_formatNumber(_fee)} '
