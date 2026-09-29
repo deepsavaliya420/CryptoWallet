@@ -111,21 +111,29 @@ class _NotificationsScreenState
       AppNotification notification,
       ) async {
     try {
+      if (notification.type == 'receive_request') {
+        await _showReceiveRequestDialog(
+          notification,
+        );
+        return;
+      }
+
       await NotificationService.markAsRead(
         notification.id,
       );
-
-      await loadNotifications();
 
       if (!mounted) {
         return;
       }
 
-      if (notification.type == 'p2p_payment') {
+      if (notification.type == 'p2p_payment' ||
+          notification.type == 'p2p') {
         _showMessage(
           'Open your P2P order to complete payment.',
         );
       }
+
+      await loadNotifications();
     } catch (error) {
       if (!mounted) {
         return;
@@ -136,6 +144,237 @@ class _NotificationsScreenState
         isError: true,
       );
     }
+  }
+
+  Future<void> _showReceiveRequestDialog(
+      AppNotification notification,
+      ) async {
+    if (notification.referenceId.trim().isEmpty) {
+      _showMessage(
+        'Receive request information is missing.',
+        isError: true,
+      );
+
+      return;
+    }
+
+    final bool? action = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        final colorScheme =
+            Theme.of(dialogContext).colorScheme;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color:
+                  colorScheme.primaryContainer,
+                  borderRadius:
+                  BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  Icons
+                      .account_balance_wallet_outlined,
+                  color: colorScheme
+                      .onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Receive Request',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            notification.message,
+            style: TextStyle(
+              height: 1.45,
+              color:
+              colorScheme.onSurfaceVariant,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(
+                  dialogContext,
+                ).pop(false);
+              },
+              child: const Text(
+                'Deny',
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(
+                  dialogContext,
+                ).pop(true);
+              },
+              icon: const Icon(
+                Icons.check_rounded,
+              ),
+              label: const Text(
+                'Approve',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (action == null) {
+      return;
+    }
+
+    if (action == true) {
+      await _approveReceiveRequest(
+        notification,
+      );
+    } else {
+      await _denyReceiveRequest(
+        notification,
+      );
+    }
+  }
+
+  Future<void> _approveReceiveRequest(
+      AppNotification notification,
+      ) async {
+    if (!mounted) {
+      return;
+    }
+
+    _showLoadingDialog(
+      'Approving request...',
+    );
+
+    try {
+      await NotificationService
+          .approveReceiveRequest(
+        notification.referenceId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop();
+
+      await NotificationService.markAsRead(
+        notification.id,
+      );
+
+      _showMessage(
+        'Receive request approved successfully.',
+      );
+
+      await loadNotifications();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop();
+
+      _showMessage(
+        _cleanError(error),
+        isError: true,
+      );
+    }
+  }
+
+  Future<void> _denyReceiveRequest(
+      AppNotification notification,
+      ) async {
+    if (!mounted) {
+      return;
+    }
+
+    _showLoadingDialog(
+      'Denying request...',
+    );
+
+    try {
+      await NotificationService
+          .denyReceiveRequest(
+        notification.referenceId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop();
+
+      await NotificationService.markAsRead(
+        notification.id,
+      );
+
+      _showMessage(
+        'Receive request denied.',
+      );
+
+      await loadNotifications();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop();
+
+      _showMessage(
+        _cleanError(error),
+        isError: true,
+      );
+    }
+  }
+
+  void _showLoadingDialog(
+      String message,
+      ) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child:
+                CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    fontWeight:
+                    FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showMessage(
@@ -156,7 +395,8 @@ class _NotificationsScreenState
             Icon(
               isError
                   ? Icons.error_outline_rounded
-                  : Icons.check_circle_outline_rounded,
+                  : Icons
+                  .check_circle_outline_rounded,
               color: Colors.white,
             ),
             const SizedBox(width: 10),
@@ -167,7 +407,8 @@ class _NotificationsScreenState
         ),
         backgroundColor:
         isError ? Colors.red.shade700 : null,
-        behavior: SnackBarBehavior.floating,
+        behavior:
+        SnackBarBehavior.floating,
       ),
     );
   }
@@ -175,8 +416,14 @@ class _NotificationsScreenState
   String _cleanError(Object error) {
     return error
         .toString()
-        .replaceFirst('Exception: ', '')
-        .replaceFirst('Bad state: ', '');
+        .replaceFirst(
+      'Exception: ',
+      '',
+    )
+        .replaceFirst(
+      'Bad state: ',
+      '',
+    );
   }
 
   String formatTime(DateTime time) {
@@ -210,7 +457,10 @@ class _NotificationsScreenState
 
   int get _unreadCount {
     return notifications
-        .where((notification) => !notification.isRead)
+        .where(
+          (notification) =>
+      !notification.isRead,
+    )
         .length;
   }
 
@@ -253,7 +503,8 @@ class _NotificationsScreenState
       ),
       body: isLoading
           ? const Center(
-        child: CircularProgressIndicator(),
+        child:
+        CircularProgressIndicator(),
       )
           : notifications.isEmpty
           ? _EmptyNotifications(
@@ -273,9 +524,7 @@ class _NotificationsScreenState
           ),
           children: [
             _buildHeader(context),
-
             const SizedBox(height: 20),
-
             if (_unreadCount > 0)
               Padding(
                 padding:
@@ -293,10 +542,10 @@ class _NotificationsScreenState
                   ),
                 ),
               ),
-
             ...notifications.map(
                   (
-                  AppNotification notification,
+                  AppNotification
+                  notification,
                   ) {
                 return Dismissible(
                   key: ValueKey(
@@ -337,14 +586,17 @@ class _NotificationsScreenState
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(
+      BuildContext context,
+      ) {
     final colorScheme =
         Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(19),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(23),
+        borderRadius:
+        BorderRadius.circular(23),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -375,7 +627,8 @@ class _NotificationsScreenState
               BorderRadius.circular(16),
             ),
             child: const Icon(
-              Icons.notifications_active_outlined,
+              Icons
+                  .notifications_active_outlined,
               color: Colors.white,
               size: 26,
             ),
@@ -391,7 +644,8 @@ class _NotificationsScreenState
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                    FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -400,7 +654,8 @@ class _NotificationsScreenState
                       ? 'You are all caught up.'
                       : 'You have $_unreadCount unread update${_unreadCount == 1 ? '' : 's'}.',
                   style: TextStyle(
-                    color: Colors.white.withValues(
+                    color: Colors.white
+                        .withValues(
                       alpha: 0.78,
                     ),
                     fontSize: 11.5,
@@ -421,12 +676,10 @@ class _NotificationsScreenState
         Theme.of(context).colorScheme;
 
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
-      padding: const EdgeInsets.only(
-        right: 22,
-      ),
+      margin:
+      const EdgeInsets.only(bottom: 12),
+      padding:
+      const EdgeInsets.only(right: 22),
       alignment: Alignment.centerRight,
       decoration: BoxDecoration(
         color: colorScheme.error,
@@ -442,7 +695,8 @@ class _NotificationsScreenState
   }
 }
 
-class _NotificationCard extends StatelessWidget {
+class _NotificationCard
+    extends StatelessWidget {
   final AppNotification notification;
   final String time;
   final VoidCallback onTap;
@@ -459,21 +713,31 @@ class _NotificationCard extends StatelessWidget {
         Theme.of(context).colorScheme;
 
     final bool isP2P =
-        notification.type == 'p2p_payment';
+        notification.type == 'p2p' ||
+            notification.type ==
+                'p2p_payment';
 
-    final Color iconColor = isP2P
+    final bool isReceiveRequest =
+        notification.type ==
+            'receive_request';
+
+    final Color iconColor =
+    isReceiveRequest
+        ? colorScheme.primary
+        : isP2P
         ? colorScheme.primary
         : colorScheme.secondary;
 
     final Color iconBackground =
-    isP2P
+    isReceiveRequest
+        ? colorScheme.primaryContainer
+        : isP2P
         ? colorScheme.primaryContainer
         : colorScheme.secondaryContainer;
 
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
+      margin:
+      const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: notification.isRead
             ? colorScheme.surface
@@ -504,7 +768,8 @@ class _NotificationCard extends StatelessWidget {
           BorderRadius.circular(19),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(15),
+            padding:
+            const EdgeInsets.all(15),
             child: Row(
               crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -515,10 +780,15 @@ class _NotificationCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: iconBackground,
                     borderRadius:
-                    BorderRadius.circular(15),
+                    BorderRadius.circular(
+                      15,
+                    ),
                   ),
                   child: Icon(
-                    isP2P
+                    isReceiveRequest
+                        ? Icons
+                        .account_balance_wallet_outlined
+                        : isP2P
                         ? Icons
                         .account_balance_wallet_outlined
                         : Icons
@@ -527,9 +797,7 @@ class _NotificationCard extends StatelessWidget {
                     size: 23,
                   ),
                 ),
-
                 const SizedBox(width: 13),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -546,8 +814,10 @@ class _NotificationCard extends StatelessWidget {
                                 fontSize: 14,
                                 fontWeight:
                                 notification.isRead
-                                    ? FontWeight.w600
-                                    : FontWeight.w800,
+                                    ? FontWeight
+                                    .w600
+                                    : FontWeight
+                                    .w800,
                               ),
                             ),
                           ),
@@ -565,14 +835,13 @@ class _NotificationCard extends StatelessWidget {
                                 shape:
                                 BoxShape.circle,
                                 color:
-                                colorScheme.primary,
+                                colorScheme
+                                    .primary,
                               ),
                             ),
                         ],
                       ),
-
                       const SizedBox(height: 6),
-
                       Text(
                         notification.message,
                         style: TextStyle(
@@ -582,13 +851,31 @@ class _NotificationCard extends StatelessWidget {
                               .onSurfaceVariant,
                         ),
                       ),
-
+                      if (isReceiveRequest &&
+                          !notification.isRead)
+                        Padding(
+                          padding:
+                          const EdgeInsets.only(
+                            top: 9,
+                          ),
+                          child: Text(
+                            'Tap to approve or deny',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight:
+                              FontWeight.w700,
+                              color:
+                              colorScheme
+                                  .primary,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 9),
-
                       Row(
                         children: [
                           Icon(
-                            Icons.access_time_rounded,
+                            Icons
+                                .access_time_rounded,
                             size: 13,
                             color: colorScheme
                                 .onSurfaceVariant,
@@ -630,7 +917,8 @@ class _EmptyNotifications
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(30),
+        padding:
+        const EdgeInsets.all(30),
         child: Column(
           mainAxisAlignment:
           MainAxisAlignment.center,
@@ -644,33 +932,31 @@ class _EmptyNotifications
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.notifications_none_rounded,
+                Icons
+                    .notifications_none_rounded,
                 size: 50,
                 color: colorScheme
                     .onPrimaryContainer,
               ),
             ),
-
             const SizedBox(height: 22),
-
             const Text(
               'All Caught Up',
               style: TextStyle(
                 fontSize: 22,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                FontWeight.w800,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               'You have no notifications right now.\nNew wallet and P2P updates will appear here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.5,
-                color:
-                colorScheme.onSurfaceVariant,
+                color: colorScheme
+                    .onSurfaceVariant,
               ),
             ),
           ],

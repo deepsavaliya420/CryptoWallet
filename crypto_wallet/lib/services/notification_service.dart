@@ -5,6 +5,7 @@ class AppNotification {
   final String title;
   final String message;
   final String type;
+  final String referenceId;
   final DateTime createdAt;
   final bool isRead;
 
@@ -13,6 +14,7 @@ class AppNotification {
     required this.title,
     required this.message,
     required this.type,
+    this.referenceId = '',
     required this.createdAt,
     this.isRead = false,
   });
@@ -22,6 +24,7 @@ class AppNotification {
     String? title,
     String? message,
     String? type,
+    String? referenceId,
     DateTime? createdAt,
     bool? isRead,
   }) {
@@ -30,6 +33,7 @@ class AppNotification {
       title: title ?? this.title,
       message: message ?? this.message,
       type: type ?? this.type,
+      referenceId: referenceId ?? this.referenceId,
       createdAt: createdAt ?? this.createdAt,
       isRead: isRead ?? this.isRead,
     );
@@ -129,6 +133,7 @@ class NotificationService {
     required String title,
     required String message,
     required String type,
+    String referenceId = '',
   }) async {
     final String backendType =
     _convertTypeToBackend(type);
@@ -139,6 +144,7 @@ class NotificationService {
         'title': title,
         'message': message,
         'type': backendType,
+        'referenceId': referenceId,
       },
     );
 
@@ -189,7 +195,60 @@ class NotificationService {
           '$asset to $sellerName '
           'using $paymentMethod.',
       type: 'p2p_payment',
+      referenceId: orderId,
     );
+  }
+
+  // ============================================================
+  // APPROVE RECEIVE REQUEST
+  // ============================================================
+
+  static Future<void> approveReceiveRequest(
+      String requestId,
+      ) async {
+    if (requestId.trim().isEmpty) {
+      throw StateError(
+        'Receive request ID is missing.',
+      );
+    }
+
+    final response = await ApiService.put(
+      '/receive-requests/$requestId/approve',
+      {},
+    );
+
+    if (response['success'] != true) {
+      throw StateError(
+        response['message']?.toString() ??
+            'Receive request could not be approved.',
+      );
+    }
+  }
+
+  // ============================================================
+  // DENY RECEIVE REQUEST
+  // ============================================================
+
+  static Future<void> denyReceiveRequest(
+      String requestId,
+      ) async {
+    if (requestId.trim().isEmpty) {
+      throw StateError(
+        'Receive request ID is missing.',
+      );
+    }
+
+    final response = await ApiService.put(
+      '/receive-requests/$requestId/deny',
+      {},
+    );
+
+    if (response['success'] != true) {
+      throw StateError(
+        response['message']?.toString() ??
+            'Receive request could not be denied.',
+      );
+    }
   }
 
   // ============================================================
@@ -214,8 +273,7 @@ class NotificationService {
     final int index =
     _notifications.indexWhere(
           (AppNotification notification) =>
-      notification.id ==
-          notificationId,
+      notification.id == notificationId,
     );
 
     if (index != -1) {
@@ -273,8 +331,7 @@ class NotificationService {
 
     _notifications.removeWhere(
           (AppNotification notification) =>
-      notification.id ==
-          notificationId,
+      notification.id == notificationId,
     );
   }
 
@@ -346,16 +403,24 @@ class NotificationService {
       data['notificationId']?.toString() ??
           data['_id']?.toString() ??
           'NOT-${DateTime.now().millisecondsSinceEpoch}',
+
       title:
       data['title']?.toString() ?? '',
+
       message:
       data['message']?.toString() ?? '',
+
       type:
       _convertTypeFromBackend(
         data['type']?.toString() ?? '',
       ),
+
+      referenceId:
+      data['referenceId']?.toString() ?? '',
+
       createdAt:
       _parseDate(data['createdAt']),
+
       isRead:
       data['isRead'] == true,
     );
@@ -378,6 +443,9 @@ class NotificationService {
       case 'p2p':
       case 'p2p_payment':
         return 'p2p';
+
+      case 'receive_request':
+        return 'receive_request';
 
       case 'security':
         return 'security';
@@ -405,6 +473,9 @@ class NotificationService {
 
       case 'p2p':
         return 'p2p';
+
+      case 'receive_request':
+        return 'receive_request';
 
       case 'security':
         return 'security';

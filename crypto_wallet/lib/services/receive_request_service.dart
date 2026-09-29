@@ -7,6 +7,10 @@ class ReceiveRequestService {
 
   static bool _initialized = false;
 
+  // ============================================================
+  // INITIALIZE
+  // ============================================================
+
   static Future<void> initialize() async {
     if (_initialized) {
       return;
@@ -17,11 +21,19 @@ class ReceiveRequestService {
     _initialized = true;
   }
 
+  // ============================================================
+  // REFRESH
+  // ============================================================
+
   static Future<void> refresh() async {
     _initialized = false;
 
     await initialize();
   }
+
+  // ============================================================
+  // CREATE REQUEST
+  // ============================================================
 
   static Future<ReceiveRequest> createRequest({
     required String requestedFrom,
@@ -60,7 +72,8 @@ class ReceiveRequestService {
         'asset':
         asset.trim().toUpperCase(),
 
-        'amount': amount,
+        'amount':
+        amount,
 
         'walletAddress':
         requestedTo.trim(),
@@ -106,6 +119,10 @@ class ReceiveRequestService {
     return request;
   }
 
+  // ============================================================
+  // GET REQUESTS
+  // ============================================================
+
   static Future<List<ReceiveRequest>>
   getRequests() async {
     await _refreshFromBackend();
@@ -114,6 +131,10 @@ class ReceiveRequestService {
       _requests,
     );
   }
+
+  // ============================================================
+  // GET PENDING REQUESTS
+  // ============================================================
 
   static Future<List<ReceiveRequest>>
   getPendingRequests() async {
@@ -129,7 +150,10 @@ class ReceiveRequestService {
         .toList();
 
     pending.sort(
-          (ReceiveRequest a, ReceiveRequest b) =>
+          (
+          ReceiveRequest a,
+          ReceiveRequest b,
+          ) =>
           b.createdAt.compareTo(
             a.createdAt,
           ),
@@ -139,6 +163,10 @@ class ReceiveRequestService {
       pending,
     );
   }
+
+  // ============================================================
+  // GET ONE REQUEST
+  // ============================================================
 
   static Future<ReceiveRequest?>
   getRequest(
@@ -156,6 +184,78 @@ class ReceiveRequestService {
     }
   }
 
+  // ============================================================
+  // APPROVE REQUEST
+  // ============================================================
+
+  static Future<ReceiveRequest>
+  approveRequest(
+      String requestId,
+      ) async {
+    final response = await ApiService.put(
+      '/receive-requests/$requestId/approve',
+      {},
+    );
+
+    if (response['success'] != true ||
+        response['receiveRequest'] == null) {
+      throw StateError(
+        response['message']?.toString() ??
+            'Receive request could not be approved.',
+      );
+    }
+
+    final Map<String, dynamic> data =
+    Map<String, dynamic>.from(
+      response['receiveRequest'],
+    );
+
+    final ReceiveRequest updated =
+    _fromBackendMap(data);
+
+    _updateLocalRequest(updated);
+
+    return updated;
+  }
+
+  // ============================================================
+  // DENY REQUEST
+  // ============================================================
+
+  static Future<ReceiveRequest>
+  denyRequest(
+      String requestId,
+      ) async {
+    final response = await ApiService.put(
+      '/receive-requests/$requestId/deny',
+      {},
+    );
+
+    if (response['success'] != true ||
+        response['receiveRequest'] == null) {
+      throw StateError(
+        response['message']?.toString() ??
+            'Receive request could not be denied.',
+      );
+    }
+
+    final Map<String, dynamic> data =
+    Map<String, dynamic>.from(
+      response['receiveRequest'],
+    );
+
+    final ReceiveRequest updated =
+    _fromBackendMap(data);
+
+    _updateLocalRequest(updated);
+
+    return updated;
+  }
+
+  // ============================================================
+  // CANCEL REQUEST
+  // ============================================================
+
   static Future<ReceiveRequest>
   cancelRequest(
       String requestId,
@@ -166,6 +266,10 @@ class ReceiveRequestService {
     );
   }
 
+  // ============================================================
+  // COMPLETE REQUEST
+  // ============================================================
+
   static Future<ReceiveRequest>
   completeRequest(
       String requestId,
@@ -175,6 +279,10 @@ class ReceiveRequestService {
       status: 'completed',
     );
   }
+
+  // ============================================================
+  // UPDATE REQUEST STATUS
+  // ============================================================
 
   static Future<ReceiveRequest>
   _updateRequestStatus({
@@ -204,25 +312,14 @@ class ReceiveRequestService {
     final ReceiveRequest updated =
     _fromBackendMap(data);
 
-    final int index =
-    _requests.indexWhere(
-          (ReceiveRequest request) =>
-      request.id == requestId,
-    );
-
-    if (index == -1) {
-      _requests.insert(
-        0,
-        updated,
-      );
-    } else {
-      _requests[index] = updated;
-    }
-
-    _sortRequests();
+    _updateLocalRequest(updated);
 
     return updated;
   }
+
+  // ============================================================
+  // DELETE REQUEST
+  // ============================================================
 
   static Future<void> deleteRequest(
       String requestId,
@@ -245,6 +342,10 @@ class ReceiveRequestService {
     );
   }
 
+  // ============================================================
+  // CLEAR REQUESTS
+  // ============================================================
+
   static Future<void> clearRequests() async {
     final response =
     await ApiService.delete(
@@ -260,6 +361,10 @@ class ReceiveRequestService {
 
     _requests.clear();
   }
+
+  // ============================================================
+  // REFRESH FROM BACKEND
+  // ============================================================
 
   static Future<void>
   _refreshFromBackend() async {
@@ -289,6 +394,35 @@ class ReceiveRequestService {
 
     _sortRequests();
   }
+
+  // ============================================================
+  // UPDATE LOCAL REQUEST
+  // ============================================================
+
+  static void _updateLocalRequest(
+      ReceiveRequest updated,
+      ) {
+    final int index =
+    _requests.indexWhere(
+          (ReceiveRequest request) =>
+      request.id == updated.id,
+    );
+
+    if (index == -1) {
+      _requests.insert(
+        0,
+        updated,
+      );
+    } else {
+      _requests[index] = updated;
+    }
+
+    _sortRequests();
+  }
+
+  // ============================================================
+  // BACKEND MAP → MODEL
+  // ============================================================
 
   static ReceiveRequest _fromBackendMap(
       Map<String, dynamic> data,
@@ -335,6 +469,10 @@ class ReceiveRequestService {
     );
   }
 
+  // ============================================================
+  // DOUBLE PARSER
+  // ============================================================
+
   static double _toDouble(
       dynamic value,
       ) {
@@ -348,6 +486,10 @@ class ReceiveRequestService {
         0.0;
   }
 
+  // ============================================================
+  // DATE PARSER
+  // ============================================================
+
   static DateTime _parseDate(
       dynamic value,
       ) {
@@ -360,6 +502,10 @@ class ReceiveRequestService {
     ) ??
         DateTime.now();
   }
+
+  // ============================================================
+  // NULLABLE DATE PARSER
+  // ============================================================
 
   static DateTime? _parseNullableDate(
       dynamic value,
@@ -376,6 +522,10 @@ class ReceiveRequestService {
       value.toString(),
     );
   }
+
+  // ============================================================
+  // SORT
+  // ============================================================
 
   static void _sortRequests() {
     _requests.sort(

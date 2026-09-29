@@ -4,11 +4,11 @@ const {
   getReceiveRequests,
   createReceiveRequest,
   updateReceiveRequest,
+  approveReceiveRequest,
+  denyReceiveRequest,
   deleteReceiveRequest,
   clearReceiveRequests
-} = require(
-  "../controllers/receiveRequestController"
-);
+} = require("../controllers/receiveRequestController");
 
 const authMiddleware =
   require("../middleware/authMiddleware");
@@ -25,6 +25,18 @@ router.post(
   "/",
   authMiddleware,
   createReceiveRequest
+);
+
+router.put(
+  "/:requestId/approve",
+  authMiddleware,
+  approveReceiveRequest
+);
+
+router.put(
+  "/:requestId/deny",
+  authMiddleware,
+  denyReceiveRequest
 );
 
 router.put(

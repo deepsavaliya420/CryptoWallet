@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
 import 'api_service.dart';
 import 'user_service.dart';
+import 'wallet_service.dart';
 
 class AuthService {
   static UserProfile? get currentUser =>
@@ -50,6 +51,10 @@ class AuthService {
         'auth_token',
         token.toString(),
       );
+
+      // Clear the previous user's in-memory wallet
+      // before starting the new user's session.
+      WalletService.resetSession();
 
       final user = UserProfile(
         userId: userData['userId'] ?? '',
@@ -122,6 +127,10 @@ class AuthService {
         token.toString(),
       );
 
+      // Clear any previous user's in-memory wallet
+      // before starting the newly registered user's session.
+      WalletService.resetSession();
+
       final user = UserProfile(
         userId: userData['userId'] ?? '',
         fullName: userData['fullName'] ?? '',
@@ -149,6 +158,10 @@ class AuthService {
     await SharedPreferences.getInstance();
 
     await prefs.remove('auth_token');
+
+    // Clear the wallet data belonging to the
+    // currently logged-in user from memory.
+    WalletService.resetSession();
 
     await UserService.clearUser();
   }

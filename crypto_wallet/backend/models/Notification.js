@@ -29,11 +29,17 @@ const notificationSchema = new mongoose.Schema(
         "transaction",
         "swap",
         "p2p",
+        "receive_request",
         "security",
         "system",
         "general"
       ],
       default: "general"
+    },
+
+    referenceId: {
+      type: String,
+      default: ""
     },
 
     isRead: {

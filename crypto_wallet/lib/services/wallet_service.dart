@@ -112,6 +112,24 @@ class WalletService {
   static bool _initialized = false;
 
   // ============================================================
+  // RESET SESSION
+  //
+  // Clears only the in-memory wallet data.
+  //
+  // IMPORTANT:
+  // This does NOT modify anything in MongoDB.
+  // It only makes sure the next logged-in user
+  // loads their own wallet from the backend.
+  // ============================================================
+
+  static void resetSession() {
+    _balances.clear();
+    _assets.clear();
+
+    _initialized = false;
+  }
+
+  // ============================================================
   // INITIALIZE
   // ============================================================
 
@@ -175,7 +193,7 @@ class WalletService {
   // ============================================================
 
   static Future<void> refresh() async {
-    _initialized = false;
+    resetSession();
 
     await initialize();
   }
@@ -338,8 +356,7 @@ class WalletService {
     }
 
     final double newBalance =
-    (current - amount)
-        .clamp(
+    (current - amount).clamp(
       0.0,
       double.infinity,
     );
@@ -407,9 +424,77 @@ class WalletService {
   }
 
   // ============================================================
+  // TRANSFER USD TO ANOTHER WALLET
+  //
+  // Backend handles:
+  // - sender balance deduction
+  // - recipient balance addition
+  // - sender transaction
+  // - recipient transaction
+  //
+  // Existing sendUsd() is NOT changed.
+  // ============================================================
+
+  static Future<void> transferUsd({
+    required String recipientAddress,
+    required double amount,
+  }) async {
+    await initialize();
+
+    final String normalizedAddress =
+    recipientAddress.trim();
+
+    if (normalizedAddress.isEmpty) {
+      throw StateError(
+        'Recipient wallet address is required.',
+      );
+    }
+
+    if (amount <= 0) {
+      throw StateError(
+        'USD amount must be greater than zero.',
+      );
+    }
+
+    final double total =
+    await getTotalBalance();
+
+    if (amount >
+        total + 0.00000001) {
+      throw StateError(
+        'Insufficient wallet balance. '
+            'Available: '
+            '\$${total.toStringAsFixed(2)}',
+      );
+    }
+
+    final response = await ApiService.put(
+      '/wallet/transfer',
+      {
+        'recipientAddress': normalizedAddress,
+        'amount': amount,
+      },
+    );
+
+    if (response['success'] != true) {
+      throw StateError(
+        response['message']?.toString() ??
+            'Transfer failed.',
+      );
+    }
+
+    // Backend has already updated the wallet.
+    // Clear local data and load the latest
+    // wallet balance from backend.
+    resetSession();
+
+    await initialize();
+  }
+
+  // ============================================================
   // RECEIVE USD
   //
-  // Existing behavior:
+  // Existing behavior preserved:
   // received USD becomes USDT.
   // ============================================================
 
@@ -638,15 +723,7 @@ class WalletService {
   // ============================================================
   // REMOVE USD VALUE FROM WALLET
   //
-  // PRIORITY:
-  //
-  // 1. Actual USD
-  // 2. ETH
-  // 3. USDT
-  // 4. USDC
-  // 5. SOL
-  // 6. TRX
-  // 7. BTC
+  // Existing behavior preserved.
   // ============================================================
 
   static Future<void>
@@ -672,8 +749,7 @@ class WalletService {
           removeUsd;
     }
 
-    const List<String>
-    sourceAssets = [
+    const List<String> sourceAssets = [
       'ETH',
       'USDT',
       'USDC',
@@ -750,7 +826,8 @@ class WalletService {
       String currency,
       double amount,
       ) async {
-    final response = await ApiService.put(
+    final response =
+    await ApiService.put(
       '/wallet/balance',
       {
         'asset': currency,

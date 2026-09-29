@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/receive_request_service.dart';
-import '../services/transaction_service.dart';
+import '../services/user_service.dart';
 import '../services/wallet_service.dart';
 
 enum TransferMode {
@@ -150,26 +150,39 @@ class _SendReceiveScreenState
     });
 
     try {
-      const String myWalletAddress =
-          'MY_WALLET';
+      final String myWalletAddress =
+          UserService.currentUser?.walletAddress.trim() ?? '';
 
-      // Remove USD value from wallet.
-      await WalletService.sendUsd(
-        amount,
-      );
+      if (myWalletAddress.isEmpty) {
+        throw Exception(
+          'Your wallet address is not available. Please refresh your profile and try again.',
+        );
+      }
 
-      // Create transaction.
-      await TransactionService.createTransaction(
-        type: 'Sent',
-        asset: 'USD',
-        network: 'TRC-20',
+      if (address == myWalletAddress) {
+        throw Exception(
+          'You cannot send USD to your own wallet.',
+        );
+      }
+
+      // ========================================================
+      // ACTUAL WALLET TRANSFER
+      //
+      // Backend will:
+      // 1. Check recipient wallet
+      // 2. Check sender balance
+      // 3. Deduct amount from sender
+      // 4. Add amount to recipient
+      // 5. Create sender "Sent" transaction
+      // 6. Create recipient "Received" transaction
+      // ========================================================
+
+      await WalletService.transferUsd(
+        recipientAddress: address,
         amount: amount,
-        value: amount,
-        from: myWalletAddress,
-        to: address,
       );
 
-      // Get updated balance.
+      // Get updated sender balance from backend.
       final double newBalance =
       await WalletService.getTotalBalance();
 
@@ -215,13 +228,29 @@ class _SendReceiveScreenState
     });
 
     try {
-      const String myWalletAddress =
-          'MY_WALLET';
+      final String myWalletAddress =
+          UserService.currentUser?.walletAddress.trim() ?? '';
+
+      if (myWalletAddress.isEmpty) {
+        throw Exception(
+          'Your wallet address is not available. Please refresh your profile and try again.',
+        );
+      }
+
+      if (address == myWalletAddress) {
+        throw Exception(
+          'You cannot create a receive request from your own wallet.',
+        );
+      }
 
       final request =
       await ReceiveRequestService.createRequest(
+        // B = the person whose wallet will be charged
         requestedFrom: address,
+
+        // A = the currently logged-in requester
         requestedTo: myWalletAddress,
+
         asset: 'USDT',
         network: 'TRC-20',
         amount: amount,
@@ -342,8 +371,8 @@ class _SendReceiveScreenState
               const SizedBox(height: 15),
 
               Text(
-                'The sender must approve the request '
-                    'and send the USDT to your wallet.',
+                'The sender will receive a notification '
+                    'and can approve or deny this request.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.45,
@@ -426,7 +455,7 @@ class _SendReceiveScreenState
       SnackBar(
         content: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline_rounded,
               color: Colors.white,
               size: 20,
@@ -560,9 +589,6 @@ class _SendReceiveScreenState
   Widget build(
       BuildContext context,
       ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
-
     final String title = isSend
         ? 'Send USD'
         : 'Receive USD';
@@ -1120,7 +1146,7 @@ class _SendReceiveScreenState
             ),
           ),
 
-          Icon(
+          const Icon(
             Icons.check_circle_rounded,
             color: Colors.green,
             size: 22,
@@ -1166,7 +1192,7 @@ class _SendReceiveScreenState
             child: Text(
               isSend
                   ? 'The USD value will be deducted from your wallet after confirmation. Your Home balance will update immediately.'
-                  : 'Creating a request does not add funds immediately. The sender must approve the request and complete the transfer.',
+                  : 'Creating a request does not add funds immediately. The sender will receive a notification and can approve or deny the request.',
               style: TextStyle(
                 fontSize: 10.5,
                 height: 1.5,

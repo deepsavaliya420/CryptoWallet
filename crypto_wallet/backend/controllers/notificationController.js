@@ -7,27 +7,40 @@ const generateNotificationId = () => {
     .toUpperCase()}`;
 };
 
+// ============================================================
+// GET NOTIFICATIONS
+// ============================================================
+
 const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({
-      userId: req.user.userId
-    }).sort({
-      createdAt: -1
-    });
+    const notifications =
+      await Notification.find({
+        userId: req.user.userId
+      }).sort({
+        createdAt: -1
+      });
 
     return res.status(200).json({
       success: true,
       notifications
     });
   } catch (error) {
-    console.error("Get notifications error:", error);
+    console.error(
+      "Get notifications error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while fetching notifications"
+      message:
+        "Server error while fetching notifications"
     });
   }
 };
+
+// ============================================================
+// CREATE NOTIFICATION
+// ============================================================
 
 const createNotification = async (req, res) => {
   try {
@@ -35,53 +48,84 @@ const createNotification = async (req, res) => {
       title,
       message,
       type,
+      referenceId,
       isRead
     } = req.body;
 
     if (!title || !message) {
       return res.status(400).json({
         success: false,
-        message: "Title and message are required"
+        message:
+          "Title and message are required"
       });
     }
 
-    const notification = await Notification.create({
-      notificationId: generateNotificationId(),
-      userId: req.user.userId,
-      title,
-      message,
-      type: type || "general",
-      isRead: isRead || false
-    });
+    const notification =
+      await Notification.create({
+        notificationId:
+          generateNotificationId(),
+
+        userId:
+          req.user.userId,
+
+        title,
+
+        message,
+
+        type:
+          type || "general",
+
+        referenceId:
+          referenceId || "",
+
+        isRead:
+          isRead === true
+      });
 
     return res.status(201).json({
       success: true,
-      message: "Notification created successfully",
+      message:
+        "Notification created successfully",
+
       notification
     });
   } catch (error) {
-    console.error("Create notification error:", error);
+    console.error(
+      "Create notification error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while creating notification"
+      message:
+        "Server error while creating notification"
     });
   }
 };
 
-const markNotificationAsRead = async (req, res) => {
-  try {
-    const { notificationId } = req.params;
+// ============================================================
+// MARK ONE NOTIFICATION AS READ
+// ============================================================
 
-    const notification = await Notification.findOne({
-      notificationId,
-      userId: req.user.userId
-    });
+const markNotificationAsRead = async (
+  req,
+  res
+) => {
+  try {
+    const { notificationId } =
+      req.params;
+
+    const notification =
+      await Notification.findOne({
+        notificationId,
+        userId: req.user.userId
+      });
 
     if (!notification) {
       return res.status(404).json({
         success: false,
-        message: "Notification not found"
+        message:
+          "Notification not found"
       });
     }
 
@@ -91,22 +135,76 @@ const markNotificationAsRead = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Notification marked as read",
+      message:
+        "Notification marked as read",
+
       notification
     });
   } catch (error) {
-    console.error("Mark notification as read error:", error);
+    console.error(
+      "Mark notification as read error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while updating notification"
+      message:
+        "Server error while updating notification"
     });
   }
 };
 
-const deleteNotification = async (req, res) => {
+// ============================================================
+// MARK ALL NOTIFICATIONS AS READ
+// ============================================================
+
+const markAllNotificationsAsRead = async (
+  req,
+  res
+) => {
   try {
-    const { notificationId } = req.params;
+    await Notification.updateMany(
+      {
+        userId: req.user.userId,
+        isRead: false
+      },
+      {
+        $set: {
+          isRead: true
+        }
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "All notifications marked as read"
+    });
+  } catch (error) {
+    console.error(
+      "Mark all notifications as read error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error while updating notifications"
+    });
+  }
+};
+
+// ============================================================
+// DELETE ONE NOTIFICATION
+// ============================================================
+
+const deleteNotification = async (
+  req,
+  res
+) => {
+  try {
+    const { notificationId } =
+      req.params;
 
     const notification =
       await Notification.findOneAndDelete({
@@ -117,27 +215,71 @@ const deleteNotification = async (req, res) => {
     if (!notification) {
       return res.status(404).json({
         success: false,
-        message: "Notification not found"
+        message:
+          "Notification not found"
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Notification deleted successfully"
+      message:
+        "Notification deleted successfully"
     });
   } catch (error) {
-    console.error("Delete notification error:", error);
+    console.error(
+      "Delete notification error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while deleting notification"
+      message:
+        "Server error while deleting notification"
     });
   }
 };
+
+// ============================================================
+// CLEAR ALL NOTIFICATIONS
+// ============================================================
+
+const clearNotifications = async (
+  req,
+  res
+) => {
+  try {
+    await Notification.deleteMany({
+      userId: req.user.userId
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "All notifications deleted successfully"
+    });
+  } catch (error) {
+    console.error(
+      "Clear notifications error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error while clearing notifications"
+    });
+  }
+};
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   getNotifications,
   createNotification,
   markNotificationAsRead,
-  deleteNotification
+  markAllNotificationsAsRead,
+  deleteNotification,
+  clearNotifications
 };
