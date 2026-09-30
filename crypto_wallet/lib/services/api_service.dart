@@ -10,7 +10,7 @@ class ApiService {
       return 'http://localhost:5000/api';
     }
 
-    return 'http://10.0.2.2:5000/api';
+    return 'http://10.255.94.105:5000/api';
   }
 
   static Future<String?> getToken() async {
