@@ -1,6 +1,7 @@
 const Wallet = require("../models/Wallet");
 const User = require("../models/User");
 const Transaction = require("../models/Transaction");
+const Notification = require("../models/Notification");
 
 const SUPPORTED_ASSETS = [
   "ETH",
@@ -19,6 +20,13 @@ const SUPPORTED_ASSETS = [
 
 const generateTransactionId = () => {
   return `TX-${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 8)
+    .toUpperCase()}`;
+};
+
+const generateNotificationId = () => {
+  return `NT-${Date.now()}-${Math.random()
     .toString(36)
     .substring(2, 8)
     .toUpperCase()}`;
@@ -389,7 +397,9 @@ const transferUsd = async (req, res) => {
         asset: "USD",
         amount: numericAmount,
         from: sender.walletAddress || "",
-        to: recipient.walletAddress || normalizedRecipientAddress,
+        to:
+          recipient.walletAddress ||
+          normalizedRecipientAddress,
         status: "completed",
         network: "TRC-20",
         description: "USD wallet transfer"
@@ -399,17 +409,37 @@ const transferUsd = async (req, res) => {
       // CREATE RECIPIENT TRANSACTION
       // --------------------------------------------------------
 
-      await Transaction.create({
-        transactionId: generateTransactionId(),
+      const recipientTransaction =
+        await Transaction.create({
+          transactionId: generateTransactionId(),
+          userId: recipient.userId,
+          type: "received",
+          asset: "USD",
+          amount: numericAmount,
+          from: sender.walletAddress || "",
+          to:
+            recipient.walletAddress ||
+            normalizedRecipientAddress,
+          status: "completed",
+          network: "TRC-20",
+          description: "USD wallet transfer received"
+        });
+
+      // --------------------------------------------------------
+      // CREATE RECIPIENT NOTIFICATION
+      // --------------------------------------------------------
+
+      await Notification.create({
+        notificationId: generateNotificationId(),
         userId: recipient.userId,
-        type: "received",
-        asset: "USD",
-        amount: numericAmount,
-        from: sender.walletAddress || "",
-        to: recipient.walletAddress || normalizedRecipientAddress,
-        status: "completed",
-        network: "TRC-20",
-        description: "USD wallet transfer received"
+        title: "USD Received",
+        message:
+          `$${numericAmount.toFixed(2)} USD received from ` +
+          `${sender.walletAddress || "another wallet"}`,
+        type: "transaction",
+        referenceId:
+          recipientTransaction.transactionId,
+        isRead: false
       });
 
       return res.status(200).json({
@@ -417,7 +447,9 @@ const transferUsd = async (req, res) => {
         message: "USD transferred successfully",
         amount: numericAmount,
         from: sender.walletAddress || "",
-        to: recipient.walletAddress || normalizedRecipientAddress
+        to:
+          recipient.walletAddress ||
+          normalizedRecipientAddress
       });
     } catch (error) {
       // --------------------------------------------------------

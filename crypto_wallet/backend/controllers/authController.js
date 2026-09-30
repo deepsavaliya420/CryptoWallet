@@ -62,10 +62,10 @@ const register = async (req, res) => {
       userId,
       walletAddress,
       balances: {
-        ETH: 0.82,
-        USDT: 250,
-        SOL: 1.50,
-        TRX: 12,
+        ETH: 0,
+        USDT: 0,
+        SOL: 0,
+        TRX: 0,
         INR: 0,
         USD: 0
       }
