@@ -126,6 +126,11 @@ class _HomeScreenState
 
   Future<void> _loadWalletData() async {
     try {
+      // Refresh live crypto market prices first.
+      // This makes Home use the latest Coinlayer
+      // prices whenever the wallet data is loaded.
+      await WalletService.refreshMarketRates();
+
       final List<Asset> walletAssets =
       await WalletService.getAssets();
 
@@ -489,11 +494,8 @@ class _HomeScreenState
             ],
           ),
         ),
-
         _notificationHeaderButton(context),
-
         const SizedBox(width: 9),
-
         _headerButton(
           context,
           icon: Icons.person_outline_rounded,
@@ -530,7 +532,6 @@ class _HomeScreenState
                   color: colorScheme.onSurface,
                 ),
               ),
-
               if (hasUnreadNotifications)
                 Positioned(
                   top: 7,
@@ -682,7 +683,6 @@ class _HomeScreenState
           onAction: _openAssets,
         ),
         const SizedBox(height: 11),
-
         if (assets.isEmpty)
           _emptyCard(
             context,
@@ -692,7 +692,6 @@ class _HomeScreenState
             message:
             'Your wallet assets will appear here.',
           ),
-
         ...assets.take(4).map(
               (Asset asset) {
             return Padding(
@@ -723,7 +722,6 @@ class _HomeScreenState
           onAction: _openSwapHistory,
         ),
         const SizedBox(height: 11),
-
         if (transactions.isEmpty)
           _emptyCard(
             context,
@@ -732,13 +730,11 @@ class _HomeScreenState
             message:
             'Your latest wallet activity will appear here.',
           ),
-
         ...transactions.map(
               (WalletTransaction transaction) {
             return _transactionCard(transaction);
           },
         ),
-
         if (transactions.isNotEmpty)
           Padding(
             padding:
@@ -912,9 +908,7 @@ class _HomeScreenState
               size: 22,
             ),
           ),
-
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -958,9 +952,7 @@ class _HomeScreenState
               ],
             ),
           ),
-
           const SizedBox(width: 8),
-
           Flexible(
             child: Text(
               amountText,
@@ -1011,37 +1003,25 @@ class _HomeScreenState
             ),
             children: [
               _buildHeader(context),
-
               const SizedBox(height: 24),
-
               _buildBalanceSection(context),
-
               const SizedBox(height: 28),
-
               SectionTitle(
                 title: 'Quick Actions',
               ),
-
               const SizedBox(height: 12),
-
               _buildQuickActions(context),
-
               const SizedBox(height: 30),
-
               _buildAssetsSection(context),
-
               const SizedBox(height: 28),
-
               _buildTransactionsSection(
                 context,
               ),
-
               const SizedBox(height: 10),
             ],
           ),
         ),
       ),
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         onDestinationSelected: (

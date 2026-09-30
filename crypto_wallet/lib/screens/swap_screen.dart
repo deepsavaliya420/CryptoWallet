@@ -49,6 +49,10 @@ class _SwapScreenState extends State<SwapScreen> {
 
   Future<void> _loadWallet() async {
     try {
+      // Load market rates before calculating swap preview.
+      // SwapService keeps the rates in memory for calculations.
+      await SwapService.initialize();
+
       final balance =
       await WalletService.getTotalBalance();
 
@@ -182,7 +186,6 @@ class _SwapScreenState extends State<SwapScreen> {
   // ============================================================
 
   Future<void> _performSwap() async {
-    // Prevent duplicate submission immediately.
     if (_isSwapping) {
       return;
     }
@@ -254,12 +257,6 @@ class _SwapScreenState extends State<SwapScreen> {
 
     if (!mounted) return;
 
-    // ==========================================================
-    // IMPORTANT BUG FIX
-    // Lock the swap BEFORE opening confirmation.
-    // This prevents multiple confirmation/submission attempts.
-    // ==========================================================
-
     setState(() {
       _isSwapping = true;
     });
@@ -280,15 +277,21 @@ class _SwapScreenState extends State<SwapScreen> {
     }
 
     try {
-      await WalletService.subtractCurrencyByUsdValue(
-        currency: _fromCurrency,
-        usdValue: sourceUsdValue,
-      );
-
-      await WalletService.addCurrency(
-        currency: _toCurrency,
-        amount: _receivedAmount,
-      );
+      /*
+       * IMPORTANT:
+       *
+       * Wallet balance is NOT changed locally here.
+       *
+       * The backend /swaps endpoint now:
+       * 1. Validates the swap.
+       * 2. Deducts the source asset.
+       * 3. Adds the destination asset.
+       * 4. Creates the swap record.
+       * 5. Rolls the wallet back if swap creation fails.
+       *
+       * This prevents the old problem where Flutter changed
+       * the wallet first and then the backend also changed it.
+       */
 
       final swap = await SwapService.createSwap(
         fromCurrency: _fromCurrency,
@@ -309,6 +312,13 @@ class _SwapScreenState extends State<SwapScreen> {
         toAmount: swap.toAmount,
         exchangeRate: swap.exchangeRate,
       );
+
+      /*
+       * Backend has already changed the wallet.
+       * Refresh Flutter's local wallet state so the UI
+       * immediately reflects the backend balances.
+       */
+      await WalletService.refresh();
 
       final newBalance =
       await WalletService.getTotalBalance();

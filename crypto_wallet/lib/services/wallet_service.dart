@@ -1,5 +1,6 @@
 import '../models/asset.dart';
 import 'api_service.dart';
+import 'market_data_service.dart';
 
 class WalletService {
   // ============================================================
@@ -26,28 +27,25 @@ class WalletService {
   };
 
   // ============================================================
-  // DEMO EXCHANGE RATES
-  //
-  // 1 USD = rate units of the currency.
+  // FIAT EXCHANGE RATES
   // ============================================================
 
   static const Map<String, double> currencyRates = {
     'USD': 1.0,
-
-    'USDT': 1.0,
-    'USDC': 1.0,
-
     'INR': 83.50,
     'EUR': 0.92,
     'GBP': 0.79,
     'AED': 3.6725,
     'JPY': 157.0,
-
-    'BTC': 0.0000105,
-    'ETH': 0.00030,
-    'SOL': 0.00680,
-    'TRX': 12.0,
   };
+
+  // ============================================================
+  // LIVE CRYPTO USD RATES
+  // ============================================================
+
+  static final Map<String, double> _cryptoUsdRates = {};
+
+  static bool _marketRatesLoaded = false;
 
   // ============================================================
   // CURRENCY INFORMATION
@@ -60,7 +58,6 @@ class WalletService {
     'GBP': 'British Pound',
     'AED': 'UAE Dirham',
     'JPY': 'Japanese Yen',
-
     'USDT': 'Tether',
     'USDC': 'USD Coin',
     'BTC': 'Bitcoin',
@@ -76,7 +73,6 @@ class WalletService {
     'GBP': 'Fiat',
     'AED': 'Fiat',
     'JPY': 'Fiat',
-
     'USDT': 'TRON',
     'USDC': 'ERC-20',
     'BTC': 'Bitcoin',
@@ -113,18 +109,13 @@ class WalletService {
 
   // ============================================================
   // RESET SESSION
-  //
-  // Clears only the in-memory wallet data.
-  //
-  // IMPORTANT:
-  // This does NOT modify anything in MongoDB.
-  // It only makes sure the next logged-in user
-  // loads their own wallet from the backend.
   // ============================================================
 
   static void resetSession() {
     _balances.clear();
     _assets.clear();
+
+    _marketRatesLoaded = false;
 
     _initialized = false;
   }
@@ -179,12 +170,58 @@ class WalletService {
         _balances[currency] = value;
       }
 
+      // --------------------------------------------------------
+      // IMPORTANT:
+      // Market-price failure must NOT destroy wallet loading.
+      // --------------------------------------------------------
+
+      try {
+        await _loadMarketRates();
+      } catch (error) {
+        _marketRatesLoaded =
+            _cryptoUsdRates.isNotEmpty;
+
+        // Wallet balances were loaded successfully.
+        // Do not rethrow the market API error.
+      }
+
       _initialized = true;
 
       _syncAssets();
     } catch (e) {
       _initialized = false;
       rethrow;
+    }
+  }
+
+  // ============================================================
+  // LOAD LIVE MARKET RATES
+  // ============================================================
+
+  static Future<void> _loadMarketRates() async {
+    final Map<String, double?> rates =
+    await MarketDataService.getCryptoRates();
+
+    final Map<String, double> newRates =
+    <String, double>{};
+
+    for (final MapEntry<String, double?> entry
+    in rates.entries) {
+      final double? value = entry.value;
+
+      if (value != null && value > 0) {
+        newRates[entry.key] = value;
+      }
+    }
+
+    // Only replace existing rates if the response
+    // actually contains usable rates.
+    if (newRates.isNotEmpty) {
+      _cryptoUsdRates
+        ..clear()
+        ..addAll(newRates);
+
+      _marketRatesLoaded = true;
     }
   }
 
@@ -196,6 +233,22 @@ class WalletService {
     resetSession();
 
     await initialize();
+  }
+
+  // ============================================================
+  // REFRESH MARKET RATES ONLY
+  // ============================================================
+
+  static Future<void> refreshMarketRates() async {
+    try {
+      await _loadMarketRates();
+    } catch (_) {
+      // Keep the last successful rates.
+    }
+
+    if (_initialized) {
+      _syncAssets();
+    }
   }
 
   // ============================================================
@@ -213,6 +266,13 @@ class WalletService {
           _balances[currency] ?? 0.0;
 
       if (amount <= 0) {
+        continue;
+      }
+
+      // If a live rate is temporarily unavailable,
+      // do not crash the entire wallet.
+      if (_isCrypto(currency) &&
+          !_cryptoUsdRates.containsKey(currency)) {
         continue;
       }
 
@@ -424,15 +484,7 @@ class WalletService {
   }
 
   // ============================================================
-  // TRANSFER USD TO ANOTHER WALLET
-  //
-  // Backend handles:
-  // - sender balance deduction
-  // - recipient balance addition
-  // - sender transaction
-  // - recipient transaction
-  //
-  // Existing sendUsd() is NOT changed.
+  // TRANSFER USD
   // ============================================================
 
   static Future<void> transferUsd({
@@ -471,7 +523,8 @@ class WalletService {
     final response = await ApiService.put(
       '/wallet/transfer',
       {
-        'recipientAddress': normalizedAddress,
+        'recipientAddress':
+        normalizedAddress,
         'amount': amount,
       },
     );
@@ -483,9 +536,6 @@ class WalletService {
       );
     }
 
-    // Backend has already updated the wallet.
-    // Clear local data and load the latest
-    // wallet balance from backend.
     resetSession();
 
     await initialize();
@@ -493,9 +543,6 @@ class WalletService {
 
   // ============================================================
   // RECEIVE USD
-  //
-  // Existing behavior preserved:
-  // received USD becomes USDT.
   // ============================================================
 
   static Future<void> receiveUsd(
@@ -688,10 +735,29 @@ class WalletService {
     required double amount,
     required String currency,
   }) {
+    if (currency == 'USD') {
+      return amount;
+    }
+
+    if (_isCrypto(currency)) {
+      final double? usdRate =
+      _cryptoUsdRates[currency];
+
+      if (usdRate == null ||
+          usdRate <= 0) {
+        throw StateError(
+          'Live market price unavailable for $currency.',
+        );
+      }
+
+      return amount * usdRate;
+    }
+
     final double? rate =
     currencyRates[currency];
 
-    if (rate == null) {
+    if (rate == null ||
+        rate <= 0) {
       throw StateError(
         'Unsupported currency: $currency',
       );
@@ -708,10 +774,29 @@ class WalletService {
     required double usdAmount,
     required String currency,
   }) {
+    if (currency == 'USD') {
+      return usdAmount;
+    }
+
+    if (_isCrypto(currency)) {
+      final double? usdRate =
+      _cryptoUsdRates[currency];
+
+      if (usdRate == null ||
+          usdRate <= 0) {
+        throw StateError(
+          'Live market price unavailable for $currency.',
+        );
+      }
+
+      return usdAmount / usdRate;
+    }
+
     final double? rate =
     currencyRates[currency];
 
-    if (rate == null) {
+    if (rate == null ||
+        rate <= 0) {
       throw StateError(
         'Unsupported currency: $currency',
       );
@@ -721,9 +806,24 @@ class WalletService {
   }
 
   // ============================================================
-  // REMOVE USD VALUE FROM WALLET
-  //
-  // Existing behavior preserved.
+  // CHECK CRYPTO
+  // ============================================================
+
+  static bool _isCrypto(
+      String currency,
+      ) {
+    return const {
+      'BTC',
+      'ETH',
+      'SOL',
+      'TRX',
+      'USDT',
+      'USDC',
+    }.contains(currency);
+  }
+
+  // ============================================================
+  // REMOVE USD VALUE
   // ============================================================
 
   static Future<void>
@@ -844,7 +944,7 @@ class WalletService {
   }
 
   // ============================================================
-  // SAVE ALL BALANCES TO BACKEND
+  // SAVE ALL BALANCES
   // ============================================================
 
   static Future<void> _saveAllBalances() async {
@@ -877,7 +977,22 @@ class WalletService {
   static void _validateCurrency(
       String currency,
       ) {
-    if (!currencyRates.containsKey(
+    const Set<String> supportedCurrencies = {
+      'USD',
+      'INR',
+      'EUR',
+      'GBP',
+      'AED',
+      'JPY',
+      'USDT',
+      'USDC',
+      'BTC',
+      'ETH',
+      'SOL',
+      'TRX',
+    };
+
+    if (!supportedCurrencies.contains(
       currency,
     )) {
       throw StateError(
@@ -915,6 +1030,13 @@ class WalletService {
 
       if (amount <=
           0.0000000001) {
+        continue;
+      }
+
+      // Do not let one unavailable market price
+      // crash the entire wallet.
+      if (_isCrypto(symbol) &&
+          !_cryptoUsdRates.containsKey(symbol)) {
         continue;
       }
 
@@ -1041,6 +1163,12 @@ class WalletService {
       );
 
     _assets.clear();
+
+    try {
+      await _loadMarketRates();
+    } catch (_) {
+      // Keep any previously successful rates.
+    }
 
     _initialized = true;
 

@@ -18,7 +18,17 @@ const swapSchema = new mongoose.Schema(
       required: true
     },
 
+    fromNetwork: {
+      type: String,
+      required: true
+    },
+
     toAsset: {
+      type: String,
+      required: true
+    },
+
+    toNetwork: {
       type: String,
       required: true
     },

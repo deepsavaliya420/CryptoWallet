@@ -14,6 +14,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const userSettingsRoutes = require("./routes/userSettingsRoutes");
 const p2pOfferRoutes = require("./routes/p2pOfferRoutes");
 const p2pOrderRoutes = require("./routes/p2pOrderRoutes");
+const marketDataRoutes = require("./routes/marketDataRoutes");
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/settings", userSettingsRoutes);
 app.use("/api/p2p/offers", p2pOfferRoutes);
 app.use("/api/p2p/orders", p2pOrderRoutes);
+app.use("/api/market", marketDataRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI)
